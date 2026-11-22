@@ -19,63 +19,11 @@ struct UserProfile: Identifiable, Hashable {
     var contactEmail: String = ""
     var acceptsCommissions: Bool = false
     var avatarURL: URL?
-    var commissionMinBudget: Double = 0
-    var commissionWeeks: String = ""
     var followerCount: Int = 0
     var artworkCount: Int = 0
 
     var contactOptions: [ContactOption] {
         ContactLinks.options(email: contactEmail, instagram: instagramHandle, website: website)
-    }
-}
-
-// MARK: - Messaging
-
-struct Conversation: Identifiable, Hashable {
-    var id: String
-    var otherUserID: String
-    var otherName: String
-    var otherAvatarURL: URL?
-    var lastMessage: String
-    var lastDate: Date
-    var unreadCount: Int = 0
-
-    static func conversationID(_ a: String, _ b: String) -> String {
-        [a, b].sorted().joined(separator: "_")
-    }
-}
-
-struct Message: Identifiable, Hashable {
-    var id: String
-    var conversationID: String
-    var senderID: String
-    var senderName: String
-    var text: String
-    var date: Date
-}
-
-// MARK: - Commissions
-
-enum CommissionStatus: String, CaseIterable, Identifiable {
-    case pending, accepted, declined
-    var id: String { rawValue }
-    var label: String { rawValue.capitalized }
-}
-
-struct CommissionRequest: Identifiable, Hashable {
-    var id: String
-    var artistID: String
-    var artistName: String
-    var collectorID: String
-    var collectorName: String
-    var description: String
-    var budget: Double
-    var styles: [ArtworkStyle]
-    var status: CommissionStatus
-    var date: Date
-
-    var budgetText: String {
-        budget.formatted(.currency(code: "USD").precision(.fractionLength(0)))
     }
 }
 
@@ -244,12 +192,4 @@ protocol ArtBackend: AnyObject {
     func setLibrary(_ kind: LibraryKind, id: String, included: Bool) async throws
     func submitReport(target: ReportTarget, targetID: String, reason: ReportReason, note: String) async throws
     func deleteAccount() async throws
-    // Messages
-    func conversations() async throws -> [Conversation]
-    func messages(conversationID: String) async throws -> [Message]
-    func sendMessage(to recipientID: String, recipientName: String, text: String) async throws -> Message
-    // Commissions
-    func commissionRequests() async throws -> [CommissionRequest]
-    func sendCommissionRequest(artistID: String, artistName: String, description: String, budget: Double, styles: [ArtworkStyle]) async throws -> CommissionRequest
-    func updateCommissionRequest(id: String, status: CommissionStatus) async throws
 }

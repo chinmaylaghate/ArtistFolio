@@ -83,7 +83,7 @@ struct CloudImage: View {
 
     var body: some View {
         ZStack {
-            Color.afSurface2
+            Color(uiColor: .secondarySystemBackground)
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -91,8 +91,8 @@ struct CloudImage: View {
                     .transition(.opacity)
             } else {
                 Image(systemName: "photo.artframe")
-                    .font(.system(size: 28, weight: .ultraLight))
-                    .foregroundColor(.afTextTertiary)
+                    .font(.title)
+                    .foregroundStyle(.tertiary)
             }
         }
         .task(id: url) {

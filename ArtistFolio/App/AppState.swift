@@ -15,7 +15,6 @@ final class AppState: ObservableObject {
     @Published private(set) var contentVersion = 0
     @Published var selectedTab: TabItem = .home
     @Published var showSplash = true
-    @Published var tabBarHiders = 0
     @Published var showProfileSetup = false
     @Published var showICloudPrompt = false
     @Published var showFirstTimeSetup = false
@@ -64,7 +63,7 @@ final class AppState: ObservableObject {
     var hasICloud: Bool { currentUserID != nil }
 
     var availableTabs: [TabItem] {
-        isArtist ? [.home, .studio, .messages, .profile] : [.home, .saved, .messages, .profile]
+        [.home, .search, isArtist ? .studio : .saved, .profile]
     }
 
     func reloadSession(resetIdentity: Bool = false) async {
@@ -232,18 +231,17 @@ enum BackendFactory {
 }
 
 enum TabItem: String, CaseIterable {
-    case home, studio, saved, messages, profile
+    case home, search, studio, saved, profile
 
     var icon: String {
         switch self {
         case .home: return "house"
+        case .search: return "magnifyingglass"
         case .studio: return "paintpalette"
         case .saved: return "heart"
-        case .messages: return "bubble.left.and.bubble.right"
-        case .profile: return "person"
+        case .profile: return "person.crop.circle"
         }
     }
 
-    var selectedIcon: String { icon + ".fill" }
     var label: String { rawValue.capitalized }
 }

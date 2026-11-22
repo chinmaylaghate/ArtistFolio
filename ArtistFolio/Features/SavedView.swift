@@ -11,39 +11,27 @@ struct SavedView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            Group {
-                if !appState.hasICloud {
-                    EmptyStateView(icon: "icloud", title: "Sign In to Save Art", subtitle: "Saved art stays private in your iCloud account.", actionTitle: "Learn How") {
-                        appState.showICloudPrompt = true
-                    }
-                    .padding(.top, AFSpacing.xxxl)
-                } else if isLoading {
-                    ProgressView().tint(.afPrimary).padding(.top, AFSpacing.xxxl)
-                } else if let errorMessage, visible.isEmpty {
-                    EmptyStateView(icon: "wifi.exclamationmark", title: "Couldn't Load Saved Art", subtitle: errorMessage, actionTitle: "Try Again") {
-                        Task { await load() }
-                    }
-                } else if visible.isEmpty {
-                    EmptyStateView(icon: "heart", title: "No Saved Artworks", subtitle: "Tap the heart on any artwork to save it here.")
-                        .padding(.top, AFSpacing.xxxl)
-                } else {
-                    ArtworkGrid(artworks: visible)
+        Group {
+            if !appState.hasICloud {
+                EmptyStateView(icon: "icloud", title: "Sign In to Save Art", subtitle: "Saved art stays private in your iCloud account.", actionTitle: "Learn How") {
+                    appState.showICloudPrompt = true
                 }
+            } else if isLoading {
+                ProgressView()
+            } else if let errorMessage, visible.isEmpty {
+                EmptyStateView(icon: "wifi.exclamationmark", title: "Couldn't Load Saved Art", subtitle: errorMessage, actionTitle: "Try Again") {
+                    Task { await load() }
+                }
+            } else if visible.isEmpty {
+                EmptyStateView(icon: "heart", title: "No Saved Artworks", subtitle: "Tap the heart on any artwork to save it here.")
+            } else {
+                ScrollView {
+                    ArtworkGrid(artworks: visible).padding(.horizontal, AFSpacing.md)
+                }
+                .refreshable { await load() }
             }
-            .padding(.horizontal, AFSpacing.lg)
-            .padding(.top, AFSpacing.sm)
-            .padding(.bottom, 110)
         }
-        .background(Color.afBackground)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Saved").font(AFFont.headlineMedium).foregroundColor(.afTextPrimary)
-            }
-        }
-        .artNavigation()
-        .refreshable { await load() }
+        .navigationTitle("Saved")
         .task(id: appState.library.saved) { await load() }
     }
 

@@ -61,75 +61,53 @@ struct HomeView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: AFSpacing.xl) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(appState.profile?.displayName ?? "Discover Art")
-                        .font(.system(size: 34, weight: .bold))
-                        .foregroundColor(.afTextPrimary)
-                    Text("Original work from independent artists")
-                        .font(AFFont.bodyMedium)
-                        .foregroundColor(.afTextSecondary)
-                }
-                .padding(.horizontal, AFSpacing.lg)
-
+        ScrollView {
+            VStack(alignment: .leading, spacing: AFSpacing.lg) {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        FilterPill(label: "All", isSelected: selectedMedium == nil) { selectedMedium = nil }
+                    HStack(spacing: AFSpacing.xs) {
+                        FilterChip(label: "All", isSelected: selectedMedium == nil) { selectedMedium = nil }
                         ForEach(mediums) { medium in
-                            FilterPill(label: medium.rawValue, isSelected: selectedMedium == medium) { selectedMedium = medium }
+                            FilterChip(label: medium.rawValue, isSelected: selectedMedium == medium) { selectedMedium = medium }
                         }
                     }
-                    .padding(.horizontal, AFSpacing.lg)
+                    .padding(.horizontal, AFSpacing.md)
                 }
 
                 let followingVisible = model.following.filter(appState.isVisible)
                 if selectedMedium == nil, !followingVisible.isEmpty {
                     VStack(alignment: .leading, spacing: AFSpacing.sm) {
                         Text("From Artists You Follow")
-                            .font(AFFont.headlineMedium)
-                            .foregroundColor(.afTextPrimary)
-                            .padding(.horizontal, AFSpacing.lg)
+                            .font(.title2.bold())
+                            .padding(.horizontal, AFSpacing.md)
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(alignment: .top, spacing: 12) {
+                            LazyHStack(alignment: .top, spacing: AFSpacing.sm) {
                                 ForEach(followingVisible) { artwork in
-                                    NavigationLink(value: artwork) {
-                                        ArtworkCard(artwork: artwork).frame(width: 150)
-                                    }
-                                    .buttonStyle(.plain)
+                                    ArtworkLink(artwork: artwork).frame(width: 150)
                                 }
                             }
-                            .padding(.horizontal, AFSpacing.lg)
+                            .scrollTargetLayout()
+                            .padding(.horizontal, AFSpacing.md)
                         }
+                        .scrollTargetBehavior(.viewAligned)
                     }
                 }
 
                 VStack(alignment: .leading, spacing: AFSpacing.sm) {
-                    Text("New Arrivals")
-                        .font(AFFont.headlineMedium)
-                        .foregroundColor(.afTextPrimary)
+                    Text("New Arrivals").font(.title2.bold())
                     content
                 }
-                .padding(.horizontal, AFSpacing.lg)
-
-                Spacer(minLength: 110)
+                .padding(.horizontal, AFSpacing.md)
             }
-            .padding(.top, AFSpacing.sm)
+            .padding(.bottom, AFSpacing.md)
         }
-        .background(Color.afBackground.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("Home")
         .toolbar {
-            ToolbarItem(placement: .principal) { LogoSmall() }
             if appState.isArtist {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showNewArtwork = true } label: {
-                        Image(systemName: "plus").font(.system(size: 16, weight: .bold)).foregroundColor(.afPrimary)
-                    }
-                    .accessibilityLabel("New artwork")
+                ToolbarItem(placement: .primaryAction) {
+                    Button("New Artwork", systemImage: "plus") { showNewArtwork = true }
                 }
             }
         }
-        .artNavigation()
         .refreshable { await reload() }
         .task(id: loadKey) { await reload() }
         .sheet(isPresented: $showNewArtwork) { ArtworkEditorView(existing: nil) }
@@ -138,7 +116,7 @@ struct HomeView: View {
     @ViewBuilder
     private var content: some View {
         if model.isLoading {
-            ProgressView().tint(.afPrimary).frame(maxWidth: .infinity).padding(.vertical, AFSpacing.xxxl)
+            ProgressView().frame(maxWidth: .infinity).padding(.vertical, AFSpacing.xxl)
         } else if let error = model.errorMessage, model.artworks.isEmpty {
             EmptyStateView(icon: "wifi.exclamationmark", title: "Couldn't Load Art", subtitle: error, actionTitle: "Try Again") {
                 Task { await reload() }
@@ -151,7 +129,7 @@ struct HomeView: View {
                 Task { await model.loadMore(backend: appState.backend) }
             }
             if model.isLoadingMore {
-                ProgressView().tint(.afPrimary).frame(maxWidth: .infinity)
+                ProgressView().frame(maxWidth: .infinity)
             }
         }
     }

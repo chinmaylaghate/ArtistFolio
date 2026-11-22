@@ -41,7 +41,6 @@ final class SearchModel: ObservableObject {
 struct SearchView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var model = SearchModel()
-    @FocusState private var isFocused: Bool
     @State private var showFilters = false
 
     private var searchKey: String {
@@ -50,66 +49,38 @@ struct SearchView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: AFSpacing.md) {
-                Text("Discover")
-                    .font(AFFont.displaySmall)
-                    .foregroundColor(.afTextPrimary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                HStack(spacing: AFSpacing.sm) {
-                    HStack(spacing: AFSpacing.sm) {
-                        Image(systemName: "magnifyingglass").foregroundColor(.afTextTertiary).accessibilityHidden(true)
-                        TextField("Search art, artists, styles", text: $model.filters.text)
-                            .font(AFFont.bodyMedium)
-                            .focused($isFocused)
-                            .submitLabel(.search)
-                            .autocorrectionDisabled()
-                        if !model.filters.text.isEmpty {
-                            Button { model.filters.text = "" } label: {
-                                Image(systemName: "xmark.circle.fill").foregroundColor(.afTextTertiary)
-                            }
-                            .accessibilityLabel("Clear search")
+        results
+            .navigationTitle("Search")
+            .searchable(text: $model.filters.text, placement: .navigationBarDrawer(displayMode: .always), prompt: "Art, artists, styles")
+            .autocorrectionDisabled()
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Picker("Sort By", selection: $model.filters.sortBy) {
+                            ForEach(ArtworkFilters.SortOption.allCases) { Text($0.rawValue).tag($0) }
                         }
+                    } label: {
+                        Label("Sort", systemImage: "arrow.up.arrow.down")
                     }
-                    .padding(.horizontal, AFSpacing.md)
-                    .frame(height: 44)
-                    .background(Color.afSurface2)
-                    .clipShape(RoundedRectangle(cornerRadius: AFRadius.lg))
-
-                    Button { showFilters = true } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 16))
-                            .foregroundColor(model.filters.hasRefinements ? .white : .afTextSecondary)
-                            .frame(width: 44, height: 44)
-                            .background(model.filters.hasRefinements ? Color.afPrimary : Color.afSurface2)
-                            .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showFilters = true
+                    } label: {
+                        Label("Filters", systemImage: model.filters.hasRefinements
+                              ? "line.3.horizontal.decrease.circle.fill"
+                              : "line.3.horizontal.decrease.circle")
                     }
-                    .accessibilityLabel("Filters")
                 }
             }
-            .padding(.horizontal, AFSpacing.md)
-            .padding(.top, AFSpacing.lg)
-            .padding(.bottom, AFSpacing.sm)
-
-            ScrollView(showsIndicators: false) {
-                results
-                    .padding(.horizontal, AFSpacing.md)
-                    .padding(.vertical, AFSpacing.sm)
+            .sheet(isPresented: $showFilters) { FiltersSheet(filters: $model.filters) }
+            .task(id: searchKey) {
+                if !model.filters.text.isEmpty {
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    guard !Task.isCancelled else { return }
+                }
+                await model.search(backend: appState.backend)
             }
-            .scrollDismissesKeyboard(.interactively)
-        }
-        .background(Color.afBackground)
-        .toolbar(.hidden, for: .navigationBar)
-        .artNavigation()
-        .sheet(isPresented: $showFilters) { FiltersSheet(filters: $model.filters) }
-        .task(id: searchKey) {
-            if !model.filters.text.isEmpty {
-                try? await Task.sleep(nanoseconds: 350_000_000)
-                guard !Task.isCancelled else { return }
-            }
-            await model.search(backend: appState.backend)
-        }
     }
 
     @ViewBuilder
@@ -117,7 +88,7 @@ struct SearchView: View {
         if !model.isActive {
             browse
         } else if model.isLoading && model.artworks.isEmpty {
-            ProgressView().tint(.afPrimary).padding(.top, AFSpacing.xxxl)
+            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let error = model.errorMessage {
             EmptyStateView(icon: "wifi.exclamationmark", title: "Search Failed", subtitle: error, actionTitle: "Try Again") {
                 Task { await model.search(backend: appState.backend) }
@@ -125,25 +96,36 @@ struct SearchView: View {
         } else if model.hasSearched,
                   model.artworks.filter(appState.isVisible).isEmpty,
                   visibleArtists.isEmpty {
-            EmptyStateView(icon: "magnifyingglass", title: "No Results", subtitle: "Search matches whole words. Try a title, artist, style, or medium.")
+            ContentUnavailableView.search(text: model.filters.text.trimmed)
         } else {
-            VStack(alignment: .leading, spacing: AFSpacing.lg) {
-                if !visibleArtists.isEmpty {
-                    VStack(alignment: .leading, spacing: AFSpacing.xs) {
-                        Text("Artists").font(AFFont.headlineMedium).foregroundColor(.afTextPrimary)
-                        ForEach(visibleArtists) { artist in
-                            NavigationLink(value: ArtistLink(id: artist.id)) { ArtistRow(profile: artist) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: AFSpacing.lg) {
+                    if !visibleArtists.isEmpty {
+                        VStack(alignment: .leading, spacing: AFSpacing.sm) {
+                            Text("Artists").font(.title2.bold())
+                            ForEach(visibleArtists) { artist in
+                                NavigationLink(value: ArtistLink(id: artist.id)) {
+                                    HStack {
+                                        ArtistRow(profile: artist)
+                                        Spacer()
+                                        Image(systemName: "chevron.forward")
+                                            .font(.footnote.weight(.semibold))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .contentShape(Rectangle())
+                                }
                                 .buttonStyle(.plain)
+                            }
                         }
                     }
+                    if !model.artworks.filter(appState.isVisible).isEmpty {
+                        Text("Artworks").font(.title2.bold())
+                        ArtworkGrid(artworks: model.artworks)
+                    }
                 }
-                Picker("Sort", selection: $model.filters.sortBy) {
-                    ForEach(ArtworkFilters.SortOption.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.menu)
-                .tint(.afPrimary)
-                ArtworkGrid(artworks: model.artworks)
+                .padding(.horizontal, AFSpacing.md)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 
@@ -152,25 +134,25 @@ struct SearchView: View {
     }
 
     private var browse: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.sm) {
-            Text("Browse by Style").font(AFFont.headlineMedium).foregroundColor(.afTextPrimary)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: AFSpacing.sm)], spacing: AFSpacing.sm) {
+        List {
+            Section("Browse by Style") {
                 ForEach(ArtworkStyle.allCases) { style in
-                    Button { model.filters.styles = [style] } label: {
-                        Text(style.rawValue)
-                            .font(AFFont.captionBold)
-                            .foregroundColor(.afPrimary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 64)
-                            .background(Color.afPrimaryBg)
-                            .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
+                    Button {
+                        model.filters.styles = [style]
+                    } label: {
+                        HStack {
+                            Text(style.rawValue).foregroundStyle(Color.primary)
+                            Spacer()
+                            Image(systemName: "chevron.forward")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Color(uiColor: .tertiaryLabel))
+                        }
+                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 }
 
@@ -180,26 +162,22 @@ struct FiltersSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AFSpacing.xl) {
-                    VStack(alignment: .leading, spacing: AFSpacing.sm) {
-                        Text("Price Range").font(AFFont.headlineSmall).foregroundColor(.afTextPrimary)
-                        Text("Min: $\(Int(filters.minPrice))").font(AFFont.caption).foregroundColor(.afTextSecondary)
+            Form {
+                Section("Price Range") {
+                    VStack(alignment: .leading) {
+                        LabeledContent("Minimum", value: filters.minPrice, format: .currency(code: "USD").precision(.fractionLength(0)))
                         Slider(value: $filters.minPrice, in: 0...max(filters.maxPrice, 100), step: 50)
-                            .tint(.afPrimary)
                             .accessibilityLabel("Minimum price")
-                        Text("Max: $\(Int(filters.maxPrice))").font(AFFont.caption).foregroundColor(.afTextSecondary)
+                    }
+                    VStack(alignment: .leading) {
+                        LabeledContent("Maximum", value: filters.maxPrice, format: .currency(code: "USD").precision(.fractionLength(0)))
                         Slider(value: $filters.maxPrice, in: min(filters.minPrice, ArtworkFilters.priceCeiling - 100)...ArtworkFilters.priceCeiling, step: 100)
-                            .tint(.afPrimary)
                             .accessibilityLabel("Maximum price")
                     }
-
-                    pills("Style", ArtworkStyle.allCases, selection: $filters.styles, label: \.rawValue)
-                    pills("Medium", ArtworkMedium.allCases, selection: $filters.mediums, label: \.rawValue)
                 }
-                .padding(AFSpacing.md)
+                options("Style", ArtworkStyle.allCases, selection: $filters.styles, label: \.rawValue)
+                options("Medium", ArtworkMedium.allCases, selection: $filters.mediums, label: \.rawValue)
             }
-            .background(Color.afBackground)
             .navigationTitle("Filters")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -209,26 +187,24 @@ struct FiltersSheet: View {
                         filters = ArtworkFilters()
                         filters.text = text
                     }
-                    .foregroundColor(.afTextSecondary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }.foregroundColor(.afPrimary)
+                    Button("Done") { dismiss() }
                 }
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
-    private func pills<T: Hashable & Identifiable>(_ title: String, _ options: [T], selection: Binding<[T]>, label: KeyPath<T, String>) -> some View {
-        VStack(alignment: .leading, spacing: AFSpacing.sm) {
-            Text(title).font(AFFont.headlineSmall).foregroundColor(.afTextPrimary)
-            FlowLayout(spacing: AFSpacing.xs) {
-                ForEach(options) { option in
-                    FilterPill(label: option[keyPath: label], isSelected: selection.wrappedValue.contains(option)) {
-                        if selection.wrappedValue.contains(option) {
-                            selection.wrappedValue.removeAll { $0 == option }
-                        } else {
-                            selection.wrappedValue.append(option)
-                        }
+    private func options<T: Hashable & Identifiable>(_ title: String, _ options: [T], selection: Binding<[T]>, label: KeyPath<T, String>) -> some View {
+        Section(title) {
+            ForEach(options) { option in
+                CheckmarkRow(title: option[keyPath: label], isSelected: selection.wrappedValue.contains(option)) {
+                    if selection.wrappedValue.contains(option) {
+                        selection.wrappedValue.removeAll { $0 == option }
+                    } else {
+                        selection.wrappedValue.append(option)
                     }
                 }
             }

@@ -1,100 +1,35 @@
 import SwiftUI
 
-struct LogoSmall: View {
+struct Wordmark: View {
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "rectangle.portrait.fill").font(.system(size: 14)).foregroundColor(.afPrimary)
-            HStack(spacing: 0) {
-                Text("artist").font(.system(size: 16, weight: .bold)).foregroundColor(.afTextPrimary)
-                Text("folio").font(.system(size: 16, weight: .light)).foregroundColor(.afTextSecondary)
-            }
+        HStack(spacing: 0) {
+            Text("artist").fontWeight(.bold)
+            Text("folio").fontWeight(.light).foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Artist Folio")
     }
 }
 
-struct FormField: View {
-    let label: String
-    let placeholder: String
-    @Binding var text: String
-    var keyboardType: UIKeyboardType = .default
-    var autocapitalize = true
+struct FeatureRow: View {
+    let icon: String
+    let title: String
+    let detail: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.xs) {
-            Text(label).font(AFFont.sectionHeader).foregroundColor(.afTextSecondary).tracking(0.5)
-            TextField(placeholder, text: $text)
-                .font(AFFont.bodyLarge)
-                .keyboardType(keyboardType)
-                .textInputAutocapitalization(autocapitalize ? .sentences : .never)
-                .autocorrectionDisabled(!autocapitalize)
-                .padding(.horizontal, AFSpacing.md)
-                .frame(height: 50)
-                .background(Color.afSurface2)
-                .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-                .overlay(RoundedRectangle(cornerRadius: AFRadius.md).stroke(Color.afBorder, lineWidth: 1))
-                .accessibilityLabel(label.capitalized)
-        }
-    }
-}
-
-struct TextAreaField: View {
-    let label: String
-    let placeholder: String
-    @Binding var text: String
-    var limit = 1000
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.xs) {
-            Text(label).font(AFFont.sectionHeader).foregroundColor(.afTextSecondary).tracking(0.5)
-            ZStack(alignment: .topLeading) {
-                if text.isEmpty {
-                    Text(placeholder)
-                        .font(AFFont.bodyMedium)
-                        .foregroundColor(.afTextTertiary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 14)
-                        .accessibilityHidden(true)
-                }
-                TextEditor(text: $text)
-                    .font(AFFont.bodyMedium)
-                    .frame(minHeight: 96)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 6)
-                    .scrollContentBackground(.hidden)
-                    .accessibilityLabel(label.capitalized)
-                    .onChange(of: text) { _, value in
-                        if value.count > limit { text = String(value.prefix(limit)) }
-                    }
+        HStack(alignment: .top, spacing: AFSpacing.md) {
+            Image(systemName: icon)
+                .font(.title)
+                .foregroundStyle(.tint)
+                .frame(width: 44)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline)
+                Text(detail).font(.subheadline).foregroundStyle(.secondary)
             }
-            .background(Color.afSurface2)
-            .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-            .overlay(RoundedRectangle(cornerRadius: AFRadius.md).stroke(Color.afBorder, lineWidth: 1))
-            Text("\(text.count)/\(limit)")
-                .font(AFFont.caption)
-                .foregroundColor(.afTextTertiary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            .fixedSize(horizontal: false, vertical: true)
         }
-    }
-}
-
-struct RolePill: View {
-    let label: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(label)
-                .font(AFFont.headlineSmall)
-                .foregroundColor(isSelected ? .white : .afTextSecondary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(isSelected ? Color.afPrimary : Color.clear)
-                .clipShape(Capsule())
-        }
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -105,13 +40,13 @@ struct AvatarCircle: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(Color.afPrimaryBg)
+            Circle().fill(Color(uiColor: .systemGray5))
             if let url {
                 CloudImage(url: url, maxPixels: 300)
             } else {
                 Text(String(name.prefix(1)).uppercased())
-                    .font(.system(size: size * 0.38, weight: .semibold))
-                    .foregroundColor(.afPrimary)
+                    .font(.system(size: size * 0.42, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(width: size, height: size)
@@ -128,22 +63,15 @@ struct EmptyStateView: View {
     var action: (() -> Void)?
 
     var body: some View {
-        VStack(spacing: AFSpacing.md) {
-            Image(systemName: icon)
-                .font(.system(size: 46, weight: .ultraLight))
-                .foregroundColor(.afTextTertiary)
-                .accessibilityHidden(true)
-            Text(title).font(AFFont.headlineMedium).foregroundColor(.afTextPrimary).multilineTextAlignment(.center)
-            Text(subtitle).font(AFFont.bodySmall).foregroundColor(.afTextSecondary).multilineTextAlignment(.center)
+        ContentUnavailableView {
+            Label(title, systemImage: icon)
+        } description: {
+            Text(subtitle)
+        } actions: {
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
-                    .buttonStyle(AFOutlineButtonStyle())
-                    .frame(maxWidth: 220)
-                    .padding(.top, AFSpacing.xs)
+                Button(actionTitle, action: action).buttonStyle(.borderedProminent)
             }
         }
-        .padding(AFSpacing.xl)
-        .frame(maxWidth: .infinity)
     }
 }
 
@@ -152,46 +80,85 @@ struct StatusBadge: View {
 
     var body: some View {
         Text(status.label)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(status == .sold ? Color.afTextPrimary : Color.afOrange)
-            .clipShape(Capsule())
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, AFSpacing.xs)
+            .padding(.vertical, 3)
+            .background(status == .sold ? Color.black.opacity(0.75) : Color.orange, in: Capsule())
+    }
+}
+
+struct SaveButton: View {
+    @EnvironmentObject var appState: AppState
+    let artwork: Artwork
+
+    private var isSaved: Bool { appState.isSaved(artwork.id) }
+
+    var body: some View {
+        Button { appState.toggleSaved(artwork.id) } label: {
+            Image(systemName: isSaved ? "heart.fill" : "heart")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isSaved ? Color.red : Color.primary)
+                .symbolEffect(.bounce, value: isSaved)
+                .frame(width: 32, height: 32)
+                .background(.regularMaterial, in: Circle())
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: isSaved)
+        .accessibilityLabel(isSaved ? "Remove \(artwork.title) from saved" : "Save \(artwork.title)")
     }
 }
 
 struct ArtworkCard: View {
-    @EnvironmentObject var appState: AppState
     let artwork: Artwork
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.xxs) {
+        VStack(alignment: .leading, spacing: 2) {
             Color.clear
                 .aspectRatio(0.85, contentMode: .fit)
                 .overlay(CloudImage(url: artwork.thumbnailURL, maxPixels: 600))
-                .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
+                .clipShape(RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
                 .overlay(alignment: .topLeading) {
                     if artwork.status != .available {
                         StatusBadge(status: artwork.status).padding(AFSpacing.xs)
                     }
                 }
-                .overlay(alignment: .topTrailing) {
-                    Button { appState.toggleSaved(artwork.id) } label: {
-                        Image(systemName: appState.isSaved(artwork.id) ? "heart.fill" : "heart")
-                            .font(.system(size: 14))
-                            .foregroundColor(appState.isSaved(artwork.id) ? .afError : .afTextPrimary)
-                            .frame(width: 32, height: 32)
-                            .background(.ultraThinMaterial, in: Circle())
-                            .frame(width: 44, height: 44)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(appState.isSaved(artwork.id) ? "Remove \(artwork.title) from saved" : "Save \(artwork.title)")
-                }
-            Text(artwork.title).font(AFFont.headlineSmall).foregroundColor(.afTextPrimary).lineLimit(1)
-                .padding(.top, AFSpacing.xxs)
-            Text(artwork.artistName).font(AFFont.caption).foregroundColor(.afTextSecondary).lineLimit(1)
-            Text(artwork.priceText).font(AFFont.headlineSmall).foregroundColor(.afPrimary)
+                .overlay(alignment: .topTrailing) { SaveButton(artwork: artwork) }
+                .padding(.bottom, 6)
+            Text(artwork.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            Text(artwork.artistName)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(artwork.priceText)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+        }
+    }
+}
+
+struct ArtworkLink: View {
+    @EnvironmentObject var appState: AppState
+    let artwork: Artwork
+
+    var body: some View {
+        NavigationLink(value: artwork) {
+            ArtworkCard(artwork: artwork)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                appState.toggleSaved(artwork.id)
+            } label: {
+                Label(appState.isSaved(artwork.id) ? "Remove from Saved" : "Save",
+                      systemImage: appState.isSaved(artwork.id) ? "heart.slash" : "heart")
+            }
+            ShareLink(item: "\(artwork.title) by \(artwork.artistName) on Artist Folio")
         }
     }
 }
@@ -202,15 +169,12 @@ struct ArtworkGrid: View {
     var onReachEnd: (() -> Void)?
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 16) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: AFSpacing.sm, alignment: .top)], spacing: AFSpacing.lg) {
             ForEach(artworks.filter(appState.isVisible)) { artwork in
-                NavigationLink(value: artwork) {
-                    ArtworkCard(artwork: artwork)
-                }
-                .buttonStyle(.plain)
-                .onAppear {
-                    if artwork.id == artworks.last?.id { onReachEnd?() }
-                }
+                ArtworkLink(artwork: artwork)
+                    .onAppear {
+                        if artwork.id == artworks.last?.id { onReachEnd?() }
+                    }
             }
         }
     }
@@ -221,22 +185,15 @@ struct ArtistRow: View {
 
     var body: some View {
         HStack(spacing: AFSpacing.sm) {
-            AvatarCircle(name: profile.displayName, url: profile.avatarURL, size: 48)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(profile.displayName).font(AFFont.headlineSmall).foregroundColor(.afTextPrimary)
+            AvatarCircle(name: profile.displayName, url: profile.avatarURL, size: 44)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(profile.displayName).font(.body).foregroundStyle(.primary)
                 if !profile.location.isEmpty {
-                    Text(profile.location).font(AFFont.caption).foregroundColor(.afTextSecondary)
+                    Text(profile.location).font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.afTextTertiary)
         }
-        .padding(AFSpacing.sm)
-        .background(Color.afSurface)
-        .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-        .overlay(RoundedRectangle(cornerRadius: AFRadius.md).stroke(Color.afBorder, lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -275,7 +232,7 @@ struct FlowLayout: Layout {
     }
 }
 
-struct FilterPill: View {
+struct FilterChip: View {
     let label: String
     let isSelected: Bool
     let action: () -> Void
@@ -283,15 +240,36 @@ struct FilterPill: View {
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(AFFont.labelMedium)
-                .foregroundColor(isSelected ? .white : .afTextSecondary)
-                .padding(.horizontal, AFSpacing.md)
-                .padding(.vertical, AFSpacing.xs)
-                .background(isSelected ? Color.afPrimary : Color.afSurface)
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(isSelected ? Color.clear : Color.afBorder, lineWidth: 1))
+                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(isSelected ? Color.afPrimary : Color(uiColor: .secondarySystemFill), in: Capsule())
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: isSelected)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+struct CheckmarkRow: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title).foregroundStyle(Color.primary)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(.tint)
+                }
+            }
+            .contentShape(Rectangle())
+        }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

@@ -8,7 +8,7 @@ struct ArtistFolioApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(appState)
-                .preferredColorScheme(.light)
+                .tint(.afPrimary)
         }
     }
 }
@@ -19,7 +19,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            Color.afBackground.ignoresSafeArea()
+            Color(uiColor: .systemBackground).ignoresSafeArea()
             if appState.showSplash {
                 SplashView().transition(.opacity)
             } else if !appState.hasEnteredApp {

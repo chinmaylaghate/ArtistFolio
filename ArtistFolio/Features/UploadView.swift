@@ -52,69 +52,81 @@ struct ArtworkEditorView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AFSpacing.lg) {
-                    photoSection
-                    FormField(label: "TITLE", placeholder: "Name your artwork", text: $title)
-                    TextAreaField(label: "DESCRIPTION", placeholder: "Describe the piece", text: $details)
+            Form {
+                photoSection
 
-                    HStack(spacing: AFSpacing.sm) {
-                        menu("MEDIUM", selection: $medium, options: ArtworkMedium.allCases, label: \.rawValue)
-                        menu("STYLE", selection: $style, options: ArtworkStyle.allCases, label: \.rawValue)
-                    }
-
-                    HStack(alignment: .bottom, spacing: AFSpacing.sm) {
-                        FormField(label: "WIDTH", placeholder: "60", text: $width, keyboardType: .decimalPad)
-                        FormField(label: "HEIGHT", placeholder: "80", text: $height, keyboardType: .decimalPad)
-                        Picker("Unit", selection: $unit) {
-                            Text("cm").tag("cm")
-                            Text("in").tag("in")
+                Section("Details") {
+                    TextField("Title", text: $title)
+                    TextField("Description", text: $details, axis: .vertical)
+                        .lineLimit(3...8)
+                        .onChange(of: details) { _, value in
+                            if value.count > 1000 { details = String(value.prefix(1000)) }
                         }
-                        .pickerStyle(.segmented)
-                        .frame(width: 90, height: 50)
+                    Picker("Medium", selection: $medium) {
+                        ForEach(ArtworkMedium.allCases) { Text($0.rawValue).tag($0) }
                     }
-
-                    HStack(spacing: AFSpacing.sm) {
-                        FormField(label: "PRICE (USD)", placeholder: "1200", text: $price, keyboardType: .decimalPad)
-                        FormField(label: "YEAR", placeholder: "2026", text: $year, keyboardType: .numberPad)
-                    }
-
-                    FormField(label: "TAGS (COMMA SEPARATED)", placeholder: "ocean, blue, calm", text: $tags, autocapitalize: false)
-
-                    if existing != nil {
-                        menu("STATUS", selection: $status, options: ArtworkStatus.allCases, label: \.label)
-                    }
-
-                    if let message = errorMessage ?? validationMessage {
-                        Text(message)
-                            .font(AFFont.bodySmall)
-                            .foregroundColor(errorMessage == nil ? .afTextSecondary : .afError)
-                    }
-
-                    Button {
-                        Task { await save() }
-                    } label: {
-                        if isSaving { ProgressView().tint(.white) } else { Text(existing == nil ? "Publish Artwork" : "Save Changes") }
-                    }
-                    .buttonStyle(AFPrimaryButtonStyle())
-                    .opacity(validationMessage == nil ? 1 : 0.45)
-                    .disabled(validationMessage != nil || isSaving || isProcessing)
-
-                    if existing != nil {
-                        Button("Delete Artwork", role: .destructive) { showDelete = true }
-                            .font(AFFont.headlineSmall)
-                            .frame(maxWidth: .infinity, minHeight: 44)
+                    Picker("Style", selection: $style) {
+                        ForEach(ArtworkStyle.allCases) { Text($0.rawValue).tag($0) }
                     }
                 }
-                .padding(AFSpacing.lg)
+
+                Section("Dimensions") {
+                    numberField("Width", placeholder: "60", text: $width, keyboard: .decimalPad)
+                    numberField("Height", placeholder: "80", text: $height, keyboard: .decimalPad)
+                    Picker("Unit", selection: $unit) {
+                        Text("cm").tag("cm")
+                        Text("in").tag("in")
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section("Listing") {
+                    numberField("Price (USD)", placeholder: "1200", text: $price, keyboard: .decimalPad)
+                    numberField("Year", placeholder: "2026", text: $year, keyboard: .numberPad)
+                    if existing != nil {
+                        Picker("Status", selection: $status) {
+                            ForEach(ArtworkStatus.allCases) { Text($0.label).tag($0) }
+                        }
+                    }
+                }
+
+                Section {
+                    TextField("ocean, blue, calm", text: $tags)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("Tags")
+                } footer: {
+                    if let message = errorMessage ?? validationMessage {
+                        Text(message).foregroundStyle(errorMessage == nil ? Color.secondary : Color.red)
+                    } else {
+                        Text("Separate tags with commas.")
+                    }
+                }
+
+                if existing != nil {
+                    Section {
+                        Button("Delete Artwork", role: .destructive) { showDelete = true }
+                    }
+                }
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Color.afBackground)
             .navigationTitle(existing == nil ? "New Artwork" : "Edit Artwork")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }.foregroundColor(.afTextSecondary)
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button(existing == nil ? "Publish" : "Save") {
+                            Task { await save() }
+                        }
+                        .fontWeight(.semibold)
+                        .disabled(validationMessage != nil || isProcessing)
+                    }
                 }
             }
             .confirmationDialog("Delete this artwork?", isPresented: $showDelete, titleVisibility: .visible) {
@@ -131,63 +143,49 @@ struct ArtworkEditorView: View {
     }
 
     private var photoSection: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.sm) {
-            Text("PHOTOS (UP TO \(Self.maxPhotos))").font(AFFont.sectionHeader).foregroundColor(.afTextSecondary).tracking(0.5)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: AFSpacing.sm) {
-                    PhotosPicker(selection: $pickerItems, maxSelectionCount: Self.maxPhotos, matching: .images) {
-                        VStack(spacing: 4) {
-                            if isProcessing { ProgressView() } else { Image(systemName: "plus").font(.system(size: 22, weight: .medium)) }
-                            Text(existing == nil ? "Add" : "Replace").font(AFFont.caption)
+        Section {
+            if !previews.isEmpty || existing?.thumbnailURL != nil {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: AFSpacing.xs) {
+                        if previews.isEmpty, let url = existing?.thumbnailURL {
+                            CloudImage(url: url, maxPixels: 300)
+                                .frame(width: 88, height: 88)
+                                .clipShape(RoundedRectangle(cornerRadius: AFRadius.sm, style: .continuous))
                         }
-                        .foregroundColor(.afTextSecondary)
-                        .frame(width: 88, height: 88)
-                        .background(Color.afSurface2)
-                        .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-                        .overlay(RoundedRectangle(cornerRadius: AFRadius.md).stroke(Color.afBorder, style: StrokeStyle(lineWidth: 1, dash: [4])))
-                    }
-                    .accessibilityLabel(existing == nil ? "Add photos" : "Replace photos")
-
-                    if previews.isEmpty, let url = existing?.thumbnailURL {
-                        CloudImage(url: url, maxPixels: 300)
-                            .frame(width: 88, height: 88)
-                            .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-                    }
-                    ForEach(Array(previews.enumerated()), id: \.offset) { _, image in
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 88, height: 88)
-                            .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-                            .accessibilityLabel("Selected photo")
+                        ForEach(Array(previews.enumerated()), id: \.offset) { _, image in
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 88, height: 88)
+                                .clipShape(RoundedRectangle(cornerRadius: AFRadius.sm, style: .continuous))
+                                .accessibilityLabel("Selected photo")
+                        }
                     }
                 }
             }
+            PhotosPicker(selection: $pickerItems, maxSelectionCount: Self.maxPhotos, matching: .images) {
+                HStack {
+                    Label(existing == nil ? "Add Photos" : "Replace Photos", systemImage: "photo.badge.plus")
+                    if isProcessing {
+                        Spacer()
+                        ProgressView()
+                    }
+                }
+            }
+        } header: {
+            Text("Photos")
+        } footer: {
+            Text("Add up to \(Self.maxPhotos) photos.")
         }
     }
 
-    private func menu<T: Hashable & Identifiable>(_ title: String, selection: Binding<T>, options: [T], label: KeyPath<T, String>) -> some View {
-        VStack(alignment: .leading, spacing: AFSpacing.xs) {
-            Text(title).font(AFFont.sectionHeader).foregroundColor(.afTextSecondary).tracking(0.5)
-            Menu {
-                ForEach(options) { option in
-                    Button(option[keyPath: label]) { selection.wrappedValue = option }
-                }
-            } label: {
-                HStack {
-                    Text(selection.wrappedValue[keyPath: label]).font(AFFont.bodyMedium).foregroundColor(.afTextPrimary).lineLimit(1)
-                    Spacer()
-                    Image(systemName: "chevron.down").font(.system(size: 12)).foregroundColor(.afTextTertiary)
-                }
-                .padding(.horizontal, AFSpacing.md)
-                .frame(height: 50)
-                .background(Color.afSurface2)
-                .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-                .overlay(RoundedRectangle(cornerRadius: AFRadius.md).stroke(Color.afBorder, lineWidth: 1))
-            }
-            .accessibilityLabel("\(title.capitalized): \(selection.wrappedValue[keyPath: label])")
+    private func numberField(_ label: String, placeholder: String, text: Binding<String>, keyboard: UIKeyboardType) -> some View {
+        LabeledContent(label) {
+            TextField(placeholder, text: text)
+                .keyboardType(keyboard)
+                .multilineTextAlignment(.trailing)
+                .accessibilityLabel(label)
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func positive(_ text: String) -> Double? {

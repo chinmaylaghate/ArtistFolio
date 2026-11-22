@@ -8,8 +8,6 @@ final class DemoBackend: ArtBackend {
     private var items: [Artwork] = []
     private var state = UserLibrary()
     private(set) var reports: [(ReportTarget, String, ReportReason)] = []
-    private var messages: [Message] = []
-    private var commissionRequests: [CommissionRequest] = []
 
     init(mode: String) {
         let sofia = UserProfile(id: "artist-sofia", displayName: "Sofia Martinez", bio: "Abstract painter working with oil and gold leaf.", role: .artist, location: "Barcelona, Spain", website: "example.com", instagramHandle: "sofia.paints", contactEmail: "sofia@example.com", acceptsCommissions: true)
@@ -137,75 +135,6 @@ final class DemoBackend: ArtBackend {
         items.removeAll { $0.artistId == userID }
         profiles[userID] = nil
         state = UserLibrary()
-    }
-
-    func conversations() async throws -> [Conversation] {
-        guard let me = userID else { return [] }
-        var latestByConv: [String: Message] = [:]
-        for msg in messages where msg.conversationID.contains(me) {
-            if let existing = latestByConv[msg.conversationID] {
-                if msg.date > existing.date { latestByConv[msg.conversationID] = msg }
-            } else {
-                latestByConv[msg.conversationID] = msg
-            }
-        }
-        return latestByConv.values.compactMap { msg -> Conversation? in
-            let parts = msg.conversationID.split(separator: "_").map(String.init)
-            guard parts.count == 2 else { return nil }
-            let otherID = parts[0] == me ? parts[1] : parts[0]
-            let other = profiles[otherID]
-            return Conversation(
-                id: msg.conversationID,
-                otherUserID: otherID,
-                otherName: other?.displayName ?? "Unknown",
-                otherAvatarURL: other?.avatarURL,
-                lastMessage: msg.text,
-                lastDate: msg.date
-            )
-        }.sorted { $0.lastDate > $1.lastDate }
-    }
-
-    func messages(conversationID: String) async throws -> [Message] {
-        messages.filter { $0.conversationID == conversationID }.sorted { $0.date < $1.date }
-    }
-
-    func sendMessage(to recipientID: String, recipientName: String, text: String) async throws -> Message {
-        guard let me = userID else { throw AppError.iCloudRequired }
-        let myName = profiles[me]?.displayName ?? "Me"
-        let convID = Conversation.conversationID(me, recipientID)
-        let msg = Message(id: UUID().uuidString, conversationID: convID, senderID: me, senderName: myName, text: text, date: Date())
-        messages.append(msg)
-        return msg
-    }
-
-    func commissionRequests() async throws -> [CommissionRequest] {
-        guard let me = userID else { return [] }
-        return commissionRequests.filter { $0.artistID == me || $0.collectorID == me }
-            .sorted { $0.date > $1.date }
-    }
-
-    func sendCommissionRequest(artistID: String, artistName: String, description: String, budget: Double, styles: [ArtworkStyle]) async throws -> CommissionRequest {
-        guard let me = userID else { throw AppError.iCloudRequired }
-        let myName = profiles[me]?.displayName ?? "Collector"
-        let req = CommissionRequest(
-            id: UUID().uuidString,
-            artistID: artistID,
-            artistName: artistName,
-            collectorID: me,
-            collectorName: myName,
-            description: description,
-            budget: budget,
-            styles: styles,
-            status: .pending,
-            date: Date()
-        )
-        commissionRequests.append(req)
-        return req
-    }
-
-    func updateCommissionRequest(id: String, status: CommissionStatus) async throws {
-        guard let idx = commissionRequests.firstIndex(where: { $0.id == id }) else { return }
-        commissionRequests[idx].status = status
     }
 }
 #endif

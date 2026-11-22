@@ -16,8 +16,6 @@ struct ProfileEditorView: View {
     @State private var instagram = ""
     @State private var website = ""
     @State private var acceptsCommissions = false
-    @State private var commissionMinBudget = ""
-    @State private var commissionWeeks = ""
     @State private var acceptedTerms = false
     @State private var avatarItem: PhotosPickerItem?
     @State private var avatarData: Data?
@@ -39,80 +37,98 @@ struct ProfileEditorView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AFSpacing.lg) {
+            Form {
+                Section {
                     avatarPicker
-
-                    if mode == .create {
-                        HStack(spacing: 0) {
-                            RolePill(label: "I'm a Collector", isSelected: role == .collector) { role = .collector }
-                            RolePill(label: "I'm an Artist", isSelected: role == .artist) { role = .artist }
-                        }
-                        .background(Color.afSurface2)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.afBorder, lineWidth: 1))
-                    }
-
-                    FormField(label: "DISPLAY NAME", placeholder: "Your name", text: $displayName)
-                    FormField(label: "LOCATION", placeholder: "City, Country", text: $location)
-
-                    if role == .artist {
-                        TextAreaField(label: "BIO", placeholder: "Tell collectors about your style and process", text: $bio, limit: 280)
-
-                        VStack(alignment: .leading, spacing: AFSpacing.md) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("How collectors reach you").font(AFFont.headlineMedium).foregroundColor(.afTextPrimary)
-                                Text("Anything you add here is public.").font(AFFont.bodySmall).foregroundColor(.afTextSecondary)
-                            }
-                            FormField(label: "CONTACT EMAIL", placeholder: "you@example.com", text: $email, keyboardType: .emailAddress, autocapitalize: false)
-                            FormField(label: "INSTAGRAM", placeholder: "@yourhandle", text: $instagram, autocapitalize: false)
-                            FormField(label: "WEBSITE", placeholder: "yourwebsite.com", text: $website, keyboardType: .URL, autocapitalize: false)
-                            Toggle("Open to commissions", isOn: $acceptsCommissions)
-                                .font(AFFont.headlineSmall)
-                                .foregroundColor(.afTextPrimary)
-                                .tint(.afPrimary)
-                            if acceptsCommissions {
-                                FormField(label: "MIN BUDGET (USD)", placeholder: "e.g. 300", text: $commissionMinBudget, keyboardType: .decimalPad)
-                                FormField(label: "TYPICAL TURNAROUND", placeholder: "e.g. 4–6 weeks", text: $commissionWeeks)
-                            }
-                        }
-                    }
-
-                    if mode == .create {
-                        Toggle(isOn: $acceptedTerms) {
-                            NavigationLink("I agree to the Terms & Privacy, including zero tolerance for abusive content.") {
-                                LegalView()
-                            }
-                            .font(AFFont.bodySmall)
-                            .multilineTextAlignment(.leading)
-                        }
-                        .tint(.afPrimary)
-                    }
-
-                    if let message = errorMessage ?? validationMessage {
-                        Text(message)
-                            .font(AFFont.bodySmall)
-                            .foregroundColor(errorMessage == nil ? .afTextSecondary : .afError)
-                    }
-
-                    Button {
-                        Task { await save() }
-                    } label: {
-                        if isSaving { ProgressView().tint(.white) } else { Text(mode == .create ? "Create Profile" : "Save Changes") }
-                    }
-                    .buttonStyle(AFPrimaryButtonStyle())
-                    .opacity(validationMessage == nil ? 1 : 0.45)
-                    .disabled(validationMessage != nil || isSaving)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
                 }
-                .padding(AFSpacing.lg)
+
+                if mode == .create {
+                    Section("I am a") {
+                        Picker("Role", selection: $role) {
+                            Text("Collector").tag(UserRole.collector)
+                            Text("Artist").tag(UserRole.artist)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                    }
+                }
+
+                Section("About") {
+                    TextField("Display Name", text: $displayName)
+                        .textContentType(.name)
+                    TextField("City, Country", text: $location)
+                    if role == .artist {
+                        TextField("Bio", text: $bio, axis: .vertical)
+                            .lineLimit(3...6)
+                            .onChange(of: bio) { _, value in
+                                if value.count > 280 { bio = String(value.prefix(280)) }
+                            }
+                    }
+                }
+
+                if role == .artist {
+                    Section {
+                        TextField("Email", text: $email)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        TextField("Instagram", text: $instagram)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        TextField("Website", text: $website)
+                            .keyboardType(.URL)
+                            .textContentType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    } header: {
+                        Text("Contact")
+                    } footer: {
+                        Text("Anything you add here is public.")
+                    }
+
+                    Section {
+                        Toggle("Open to Commissions", isOn: $acceptsCommissions)
+                    } footer: {
+                        Text("Collectors see this on your profile and can reach you using your contact details.")
+                    }
+                }
+
+                if mode == .create {
+                    Section {
+                        NavigationLink("Terms & Privacy") { LegalView() }
+                        Toggle("I Agree to the Terms", isOn: $acceptedTerms)
+                    } footer: {
+                        Text("Artist Folio has zero tolerance for abusive content.")
+                    }
+                }
+
+                if let message = errorMessage ?? validationMessage {
+                    Section {
+                    } footer: {
+                        Text(message).foregroundStyle(errorMessage == nil ? Color.secondary : Color.red)
+                    }
+                }
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Color.afBackground)
             .navigationTitle(mode == .create ? "Create Profile" : "Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }.foregroundColor(.afTextSecondary)
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button(mode == .create ? "Create" : "Save") {
+                            Task { await save() }
+                        }
+                        .fontWeight(.semibold)
+                        .disabled(validationMessage != nil)
+                    }
                 }
             }
         }
@@ -124,22 +140,17 @@ struct ProfileEditorView: View {
     }
 
     private var avatarPicker: some View {
-        HStack {
-            Spacer()
-            PhotosPicker(selection: $avatarItem, matching: .images) {
-                ZStack(alignment: .bottomTrailing) {
-                    if let avatarPreview {
-                        Image(uiImage: avatarPreview).resizable().scaledToFill().frame(width: 88, height: 88).clipShape(Circle())
-                    } else {
-                        AvatarCircle(name: displayName.isEmpty ? "+" : displayName, url: appState.profile?.avatarURL, size: 88)
-                    }
-                    Circle().fill(Color.afPrimary).frame(width: 28, height: 28)
-                        .overlay(Image(systemName: "camera.fill").font(.system(size: 12)).foregroundColor(.white))
+        PhotosPicker(selection: $avatarItem, matching: .images) {
+            VStack(spacing: AFSpacing.xs) {
+                if let avatarPreview {
+                    Image(uiImage: avatarPreview).resizable().scaledToFill().frame(width: 88, height: 88).clipShape(Circle())
+                } else {
+                    AvatarCircle(name: displayName.isEmpty ? "?" : displayName, url: appState.profile?.avatarURL, size: 88)
                 }
+                Text("Choose Photo").font(.subheadline)
             }
-            .accessibilityLabel("Choose profile photo")
-            Spacer()
         }
+        .accessibilityLabel("Choose profile photo")
     }
 
     private func populate() {
@@ -152,8 +163,6 @@ struct ProfileEditorView: View {
         instagram = profile.instagramHandle
         website = profile.website
         acceptsCommissions = profile.acceptsCommissions
-        commissionMinBudget = profile.commissionMinBudget > 0 ? String(Int(profile.commissionMinBudget)) : ""
-        commissionWeeks = profile.commissionWeeks
     }
 
     private func loadAvatar(_ item: PhotosPickerItem?) async {
@@ -183,8 +192,6 @@ struct ProfileEditorView: View {
         profile.instagramHandle = role == .artist ? instagram.trimmed : ""
         profile.website = role == .artist ? website.trimmed : ""
         profile.acceptsCommissions = role == .artist && acceptsCommissions
-        profile.commissionMinBudget = role == .artist && acceptsCommissions ? (Double(commissionMinBudget) ?? 0) : 0
-        profile.commissionWeeks = role == .artist && acceptsCommissions ? commissionWeeks.trimmed : ""
         do {
             let saved = try await appState.backend.saveProfile(profile, avatar: avatarData)
             appState.updateProfile(saved, isFirstTime: mode == .create)

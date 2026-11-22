@@ -9,86 +9,66 @@ struct StudioView: View {
     @State private var showNew = false
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: AFSpacing.sm) {
-                if isLoading {
-                    ProgressView().tint(.afPrimary).padding(.top, AFSpacing.xxxl)
-                } else if let errorMessage, artworks.isEmpty {
-                    EmptyStateView(icon: "wifi.exclamationmark", title: "Couldn't Load Studio", subtitle: errorMessage, actionTitle: "Try Again") {
-                        Task { await load() }
-                    }
-                } else if artworks.isEmpty {
-                    EmptyStateView(icon: "paintpalette", title: "Your Studio Is Empty", subtitle: "Publish your first artwork so collectors can find it.", actionTitle: "Add Artwork") {
-                        showNew = true
-                    }
-                    .padding(.top, AFSpacing.xxxl)
-                } else {
-                    ForEach(artworks) { artwork in
-                        listingRow(artwork)
-                    }
+        Group {
+            if isLoading {
+                ProgressView()
+            } else if let errorMessage, artworks.isEmpty {
+                EmptyStateView(icon: "wifi.exclamationmark", title: "Couldn't Load Studio", subtitle: errorMessage, actionTitle: "Try Again") {
+                    Task { await load() }
                 }
+            } else if artworks.isEmpty {
+                EmptyStateView(icon: "paintpalette", title: "Your Studio Is Empty", subtitle: "Publish your first artwork so collectors can find it.", actionTitle: "Add Artwork") {
+                    showNew = true
+                }
+            } else {
+                List(artworks) { artwork in
+                    NavigationLink(value: artwork) { row(artwork) }
+                        .swipeActions(edge: .trailing) {
+                            Button("Edit", systemImage: "pencil") { editing = artwork }
+                                .tint(.afPrimary)
+                        }
+                        .contextMenu { actions(artwork) }
+                }
+                .refreshable { await load() }
             }
-            .padding(.horizontal, AFSpacing.md)
-            .padding(.top, AFSpacing.sm)
-            .padding(.bottom, 110)
         }
-        .background(Color.afBackground)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("Studio")
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Studio").font(AFFont.headlineMedium).foregroundColor(.afTextPrimary)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { showNew = true } label: {
-                    Image(systemName: "plus").font(.system(size: 16, weight: .bold)).foregroundColor(.afPrimary)
-                }
-                .accessibilityLabel("New artwork")
+            ToolbarItem(placement: .primaryAction) {
+                Button("New Artwork", systemImage: "plus") { showNew = true }
             }
         }
-        .artNavigation()
-        .refreshable { await load() }
         .task(id: appState.contentVersion) { await load() }
         .sheet(isPresented: $showNew) { ArtworkEditorView(existing: nil) }
         .sheet(item: $editing) { ArtworkEditorView(existing: $0) }
     }
 
-    private func listingRow(_ artwork: Artwork) -> some View {
+    private func row(_ artwork: Artwork) -> some View {
         HStack(spacing: AFSpacing.sm) {
-            NavigationLink(value: artwork) {
-                HStack(spacing: AFSpacing.sm) {
-                    CloudImage(url: artwork.thumbnailURL, maxPixels: 240)
-                        .frame(width: 72, height: 72)
-                        .clipShape(RoundedRectangle(cornerRadius: AFRadius.sm))
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(artwork.title).font(AFFont.headlineSmall).foregroundColor(.afTextPrimary).lineLimit(1)
-                        Text(artwork.priceText).font(AFFont.bodySmall).foregroundColor(.afPrimary)
-                        Text(artwork.status.label).font(AFFont.caption).foregroundColor(.afTextSecondary)
-                    }
-                    Spacer()
-                }
-                .contentShape(Rectangle())
+            CloudImage(url: artwork.thumbnailURL, maxPixels: 240)
+                .frame(width: 60, height: 60)
+                .clipShape(RoundedRectangle(cornerRadius: AFRadius.sm, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(artwork.title).font(.body).lineLimit(1)
+                Text("\(artwork.priceText) · \(artwork.status.label)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
-
-            Menu {
-                Button("Edit", systemImage: "pencil") { editing = artwork }
-                Picker("Status", selection: Binding(
-                    get: { artwork.status },
-                    set: { value in Task { await setStatus(artwork, value) } }
-                )) {
-                    ForEach(ArtworkStatus.allCases) { Text("Mark \($0.label)").tag($0) }
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundColor(.afTextSecondary)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel("Options for \(artwork.title)")
         }
-        .padding(AFSpacing.xs)
-        .background(Color.afSurface)
-        .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-        .overlay(RoundedRectangle(cornerRadius: AFRadius.md).stroke(Color.afBorder, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func actions(_ artwork: Artwork) -> some View {
+        Button("Edit", systemImage: "pencil") { editing = artwork }
+        Picker(selection: Binding(
+            get: { artwork.status },
+            set: { value in Task { await setStatus(artwork, value) } }
+        )) {
+            ForEach(ArtworkStatus.allCases) { Text($0.label).tag($0) }
+        } label: {
+            Label("Status", systemImage: "tag")
+        }
+        .pickerStyle(.menu)
     }
 
     private func load() async {
