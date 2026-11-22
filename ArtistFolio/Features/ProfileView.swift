@@ -20,6 +20,12 @@ struct ProfileView: View {
                         if appState.isArtist {
                             row(icon: "heart", title: "Saved Artworks") { SavedView() }
                             Divider().padding(.leading, 56)
+                            row(icon: "pencil.and.ruler", title: "Commissions") { CommissionsView() }
+                            Divider().padding(.leading, 56)
+                        }
+                        if !appState.isArtist {
+                            row(icon: "pencil.and.ruler", title: "My Commissions") { CommissionsView() }
+                            Divider().padding(.leading, 56)
                         }
                         row(icon: "person.2", title: "Following") {
                             ArtistListView(kind: .following)
@@ -231,6 +237,7 @@ struct ArtistProfileView: View {
     @State private var errorMessage: String?
     @State private var showReport = false
     @State private var showBlockConfirm = false
+    @State private var showCommissionSheet = false
 
     private var isSelf: Bool { artistId == appState.currentUserID }
 
@@ -256,10 +263,21 @@ struct ArtistProfileView: View {
                     .frame(maxWidth: .infinity)
 
                     if !isSelf {
-                        Button(appState.isFollowing(artistId) ? "Following" : "Follow") {
-                            appState.toggleFollowing(artistId)
+                        HStack(spacing: 12) {
+                            Button(appState.isFollowing(artistId) ? "Following" : "Follow") {
+                                appState.toggleFollowing(artistId)
+                            }
+                            .buttonStyle(AFPrimaryButtonStyle())
+
+                            if profile.acceptsCommissions {
+                                Button("Commission") { showCommissionSheet = true }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 48)
+                                    .background(Color.afPrimaryBg, in: RoundedRectangle(cornerRadius: 100))
+                                    .foregroundStyle(Color.afPrimary)
+                                    .font(.system(.headline, design: .rounded).weight(.semibold))
+                            }
                         }
-                        .buttonStyle(AFPrimaryButtonStyle())
                     }
 
                     if !profile.contactOptions.isEmpty {
@@ -319,6 +337,11 @@ struct ArtistProfileView: View {
         }
         .sheet(isPresented: $showReport) {
             ReportSheet(target: .artist, targetID: artistId, name: profile?.displayName ?? "Artist")
+        }
+        .sheet(isPresented: $showCommissionSheet) {
+            if let p = profile {
+                CommissionRequestSheet(artist: p, isPresented: $showCommissionSheet)
+            }
         }
         .task(id: "\(artistId)-\(appState.contentVersion)") {
             do {

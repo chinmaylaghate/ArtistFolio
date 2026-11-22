@@ -11,6 +11,7 @@ struct MainTabView: View {
                 case .home: NavigationStack { HomeView() }.afGlassNavBar()
                 case .studio: NavigationStack { StudioView() }.afGlassNavBar()
                 case .saved: NavigationStack { SavedView() }.afGlassNavBar()
+                case .messages: NavigationStack { MessagesView() }.messagesNavigation().afGlassNavBar()
                 case .profile: NavigationStack { ProfileView() }.afGlassNavBar()
                 }
             }

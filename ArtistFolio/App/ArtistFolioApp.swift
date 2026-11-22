@@ -33,6 +33,9 @@ struct RootView: View {
         .sheet(isPresented: $appState.showProfileSetup) {
             ProfileEditorView(mode: .create)
         }
+        .sheet(isPresented: $appState.showFirstTimeSetup) {
+            FirstTimeSetupView()
+        }
         .alert("iCloud Required", isPresented: $appState.showICloudPrompt) {
             if let url = URL(string: UIApplication.openSettingsURLString) {
                 Link("Open Settings", destination: url)

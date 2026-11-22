@@ -18,6 +18,7 @@ final class AppState: ObservableObject {
     @Published var tabBarHiders = 0
     @Published var showProfileSetup = false
     @Published var showICloudPrompt = false
+    @Published var showFirstTimeSetup = false
     @Published var alertMessage: String?
     @Published var hasEnteredApp: Bool {
         didSet { UserDefaults.standard.set(hasEnteredApp, forKey: Self.enteredKey) }
@@ -63,7 +64,7 @@ final class AppState: ObservableObject {
     var hasICloud: Bool { currentUserID != nil }
 
     var availableTabs: [TabItem] {
-        isArtist ? [.home, .studio, .profile] : [.home, .saved, .profile]
+        isArtist ? [.home, .studio, .messages, .profile] : [.home, .saved, .messages, .profile]
     }
 
     func reloadSession(resetIdentity: Bool = false) async {
@@ -103,10 +104,11 @@ final class AppState: ObservableObject {
         }
     }
 
-    func updateProfile(_ updated: UserProfile) {
+    func updateProfile(_ updated: UserProfile, isFirstTime: Bool = false) {
         session = .active(updated)
         normalizeTab()
         refreshContent()
+        if isFirstTime { showFirstTimeSetup = true }
     }
 
     func refreshContent() {
@@ -230,13 +232,14 @@ enum BackendFactory {
 }
 
 enum TabItem: String, CaseIterable {
-    case home, studio, saved, profile
+    case home, studio, saved, messages, profile
 
     var icon: String {
         switch self {
         case .home: return "house"
         case .studio: return "paintpalette"
         case .saved: return "heart"
+        case .messages: return "bubble.left.and.bubble.right"
         case .profile: return "person"
         }
     }

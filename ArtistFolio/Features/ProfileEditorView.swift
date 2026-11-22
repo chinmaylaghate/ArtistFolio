@@ -16,6 +16,8 @@ struct ProfileEditorView: View {
     @State private var instagram = ""
     @State private var website = ""
     @State private var acceptsCommissions = false
+    @State private var commissionMinBudget = ""
+    @State private var commissionWeeks = ""
     @State private var acceptedTerms = false
     @State private var avatarItem: PhotosPickerItem?
     @State private var avatarData: Data?
@@ -69,6 +71,10 @@ struct ProfileEditorView: View {
                                 .font(AFFont.headlineSmall)
                                 .foregroundColor(.afTextPrimary)
                                 .tint(.afPrimary)
+                            if acceptsCommissions {
+                                FormField(label: "MIN BUDGET (USD)", placeholder: "e.g. 300", text: $commissionMinBudget, keyboardType: .decimalPad)
+                                FormField(label: "TYPICAL TURNAROUND", placeholder: "e.g. 4–6 weeks", text: $commissionWeeks)
+                            }
                         }
                     }
 
@@ -146,6 +152,8 @@ struct ProfileEditorView: View {
         instagram = profile.instagramHandle
         website = profile.website
         acceptsCommissions = profile.acceptsCommissions
+        commissionMinBudget = profile.commissionMinBudget > 0 ? String(Int(profile.commissionMinBudget)) : ""
+        commissionWeeks = profile.commissionWeeks
     }
 
     private func loadAvatar(_ item: PhotosPickerItem?) async {
@@ -175,9 +183,11 @@ struct ProfileEditorView: View {
         profile.instagramHandle = role == .artist ? instagram.trimmed : ""
         profile.website = role == .artist ? website.trimmed : ""
         profile.acceptsCommissions = role == .artist && acceptsCommissions
+        profile.commissionMinBudget = role == .artist && acceptsCommissions ? (Double(commissionMinBudget) ?? 0) : 0
+        profile.commissionWeeks = role == .artist && acceptsCommissions ? commissionWeeks.trimmed : ""
         do {
             let saved = try await appState.backend.saveProfile(profile, avatar: avatarData)
-            appState.updateProfile(saved)
+            appState.updateProfile(saved, isFirstTime: mode == .create)
             dismiss()
         } catch {
             errorMessage = AppState.message(for: error)

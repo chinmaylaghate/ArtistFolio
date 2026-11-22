@@ -18,16 +18,22 @@ struct OnboardingRootView: View {
             subtitle: "Browse by style and medium, save pieces you love, and follow the artists behind them."
         ),
         OnboardingSlide(
+            iconName: "bubble.left.and.bubble.right.fill",
+            gradientColors: [Color(hex: "#34C759"), Color(hex: "#1A7F3C")],
+            title: "Message & Commission",
+            subtitle: "Chat directly with artists. Request a custom commission and track it all in one place."
+        ),
+        OnboardingSlide(
             iconName: "person.2.fill",
-            gradientColors: [Color(hex: "#34C759"), Color(hex: "#28A745")],
+            gradientColors: [Color(hex: "#FF6B6B"), Color(hex: "#C0392B")],
             title: "Connect Directly",
-            subtitle: "Reach artists through the contact details they share. Any purchase is arranged between you and the artist."
+            subtitle: "Every purchase is arranged between you and the artist. No middleman. Direct relationships."
         ),
     ]
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Color(uiColor: .systemBackground).ignoresSafeArea()
             if showLanding {
                 LandingView()
                     .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
@@ -110,20 +116,57 @@ struct OnboardingSlide {
 
 struct OnboardingIllustration: View {
     let slide: OnboardingSlide
+    @State private var animating = false
 
     var body: some View {
         ZStack {
-            Circle()
-                .fill(LinearGradient(colors: slide.gradientColors.map { $0.opacity(0.10) }, startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 260, height: 260)
-            Circle()
-                .fill(LinearGradient(colors: slide.gradientColors.map { $0.opacity(0.16) }, startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 180, height: 180)
+            // Blurred ambient blobs
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(slide.gradientColors[i % slide.gradientColors.count].opacity(0.18))
+                    .frame(width: CGFloat(200 - i * 40))
+                    .offset(
+                        x: CGFloat([-30, 30, 0][i]),
+                        y: CGFloat([20, -20, 30][i])
+                    )
+                    .blur(radius: 20)
+                    .scaleEffect(animating ? 1.08 : 0.95)
+                    .animation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true).delay(Double(i) * 0.5), value: animating)
+            }
+
+            // Art canvas frame
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .frame(width: 220, height: 220)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(LinearGradient(colors: slide.gradientColors.map { $0.opacity(0.4) }, startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.5)
+                )
+                .shadow(color: slide.gradientColors[0].opacity(0.25), radius: 24, y: 8)
+
+            // Main icon
             Image(systemName: slide.iconName)
-                .font(.system(size: 64, weight: .regular))
+                .font(.system(size: 72, weight: .light))
                 .foregroundStyle(LinearGradient(colors: slide.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+                .symbolEffect(.pulse, options: .repeating)
+                .scaleEffect(animating ? 1.05 : 0.98)
+                .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: animating)
+
+            // Decorative accent dots
+            ForEach(0..<4, id: \.self) { i in
+                Circle()
+                    .fill(slide.gradientColors[i % 2].opacity(0.6))
+                    .frame(width: 8, height: 8)
+                    .offset(
+                        x: [100.0, -100.0, 90.0, -85.0][i],
+                        y: [-80.0, -70.0, 85.0, 90.0][i]
+                    )
+                    .scaleEffect(animating ? 1.3 : 0.8)
+                    .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true).delay(Double(i) * 0.3), value: animating)
+            }
         }
         .padding(.top, 40)
+        .onAppear { animating = true }
         .accessibilityHidden(true)
     }
 }
