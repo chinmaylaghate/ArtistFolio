@@ -62,6 +62,7 @@ struct GlassTabBar: View {
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 20)
+        .contentShape(Rectangle())
     }
 }
 
@@ -94,6 +95,7 @@ struct GlassTabItem: View {
             .padding(.vertical, 4)
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .accessibilityLabel(tab.label)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
