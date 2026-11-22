@@ -81,7 +81,7 @@ art,paintings,gallery,artists,collect,artwork,discover,original,buy art,wall art
 | **Marketing URL** | https://chinmaylaghate.github.io/ArtistFolio/ *(optional)* |
 | **Privacy Policy URL** | https://chinmaylaghate.github.io/ArtistFolio/privacy.html |
 
-> Pages are live at **https://chinmaylaghate.github.io/ArtistFolio/** (allow ~2 min for first build).
+> ✅ All three URLs confirmed live as of 2026-11-22.
 
 ---
 
