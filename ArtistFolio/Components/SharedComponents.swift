@@ -278,6 +278,8 @@ extension View {
     func artNavigation() -> some View {
         navigationDestination(for: Artwork.self) { ArtworkDetailView(artwork: $0) }
             .navigationDestination(for: ArtistLink.self) { ArtistProfileView(artistId: $0.id) }
+            .navigationDestination(for: StyleCollectionLink.self) { StyleCollectionView(link: $0) }
+            .navigationDestination(for: ArtistDirectoryLink.self) { ArtistDirectoryView(artists: $0.artists) }
     }
 }
 
