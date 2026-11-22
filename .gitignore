@@ -1,0 +1,16 @@
+.DS_Store
+.claude/
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+*.ipa
+*.dSYM.zip
+*.dSYM
+.swiftpm/
+GoogleService-Info.plist
+.env
+*.p12
+*.mobileprovision
+*.cer
+*.pem

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+    <key>CFBundleDisplayName</key>
+    <string>ArtistFolio</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.artistfolio.app</string>
+    <key>CFBundleName</key>
+    <string>ArtistFolio</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>MinimumOSVersion</key>
+    <string>17.0</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+    <key>UIUserInterfaceStyle</key>
+    <string>Dark</string>
+
+    <!-- PRIVACY PERMISSIONS -->
+    <key>NSCameraUsageDescription</key>
+    <string>ArtistFolio uses your camera to show artwork previewed on your wall using augmented reality.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>ArtistFolio needs access to your photo library so you can upload photos of your artwork.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>ArtistFolio can save artwork images to your photo library.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>ArtistFolio uses your microphone during live studio visits and video events.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>ArtistFolio uses your location to show nearby galleries and calculate shipping rates.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Use Face ID to sign in quickly and securely to ArtistFolio.</string>
+    <key>NFCReaderUsageDescription</key>
+    <string>ArtistFolio reads NFC tags to verify artwork authenticity certificates.</string>
+
+    <!-- URL SCHEMES -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.artistfolio.app</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>artistfolio</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.google.signin</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.googleusercontent.apps.991109935372-2p4hhhem8gqo9svupuo5lktuqr2b91da</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.stripe.payment</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>artistfolio-stripe</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- BACKGROUND MODES -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>remote-notification</string>
+        <string>fetch</string>
+    </array>
+
+    <!-- NFC -->
+    <key>com.apple.developer.nfc.readersession.formats</key>
+    <array>
+        <string>TAG</string>
+        <string>NDEF</string>
+    </array>
+
+    <!-- ENCRYPTION -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+
+    <!-- NETWORK SECURITY -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <false/>
+    </dict>
+
+    <!-- PRIVACY MANIFEST -->
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>CA92.1</string>
+            </array>
+        </dict>
+    </array>
+
+</dict>
+</plist>
