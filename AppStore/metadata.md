@@ -77,11 +77,11 @@ art,paintings,gallery,artists,collect,artwork,discover,original,buy art,wall art
 
 | Field | Value |
 |---|---|
-| **Support URL** | https://artistfolio.app/support *(create a simple page or mailto: link)* |
-| **Marketing URL** | https://artistfolio.app *(optional)* |
-| **Privacy Policy URL** | https://artistfolio.app/privacy *(host the file in AppStore/privacy-policy.html)* |
+| **Support URL** | https://chinmaylaghate.github.io/ArtistFolio/support.html |
+| **Marketing URL** | https://chinmaylaghate.github.io/ArtistFolio/ *(optional)* |
+| **Privacy Policy URL** | https://chinmaylaghate.github.io/ArtistFolio/privacy.html |
 
-> You must host a privacy policy URL before submitting. See `AppStore/privacy-policy.html` for the page to upload.
+> Pages are live at **https://chinmaylaghate.github.io/ArtistFolio/** (allow ~2 min for first build).
 
 ---
 
