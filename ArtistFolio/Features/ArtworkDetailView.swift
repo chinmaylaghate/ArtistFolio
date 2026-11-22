@@ -1,585 +1,296 @@
-// MARK: - Artwork Detail
 import SwiftUI
-import RealityKit // for AR
 
 struct ArtworkDetailView: View {
-    let artwork: Artwork
     @EnvironmentObject var appState: AppState
-    @Environment(\.dismiss) var dismiss
-    @State private var selectedImageIndex: Int = 0
-    @State private var showARPreview: Bool = false
-    @State private var showBuySheet: Bool = false
-    @State private var showCertificate: Bool = false
-    @State private var showArtistProfile: Bool = false
-    @State private var showShareSheet: Bool = false
-    @State private var isInCart: Bool = false
-    @State private var addedToCart: Bool = false
+    @Environment(\.dismiss) private var dismiss
+    @State var artwork: Artwork
+    @State private var imageURLs: [URL] = []
+    @State private var selectedImage = 0
+    @State private var artist: UserProfile?
+    @State private var showContact = false
+    @State private var showReport = false
+    @State private var showBlockConfirm = false
+    @State private var showEditor = false
+
+    private var isOwner: Bool { artwork.artistId == appState.currentUserID }
+    private var galleryURLs: [URL] {
+        imageURLs.isEmpty ? [artwork.thumbnailURL].compactMap { $0 } : imageURLs
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                // Image Gallery
-                ArtworkImageGallery(
-                    imageURLs: artwork.imageURLs.isEmpty ? ["placeholder"] : artwork.imageURLs,
-                    selectedIndex: $selectedImageIndex,
-                    colorPalette: artwork.colorPalette
-                )
+                gallery
 
-                // Action chips (AR, Share, Save)
                 HStack(spacing: AFSpacing.sm) {
-                    ActionChip(icon: "arkit", label: "AR Preview") {
-                        showARPreview = true
+                    chip(icon: appState.isSaved(artwork.id) ? "heart.fill" : "heart",
+                         label: appState.isSaved(artwork.id) ? "Saved" : "Save",
+                         tint: appState.isSaved(artwork.id) ? .afError : .afTextSecondary) {
+                        appState.toggleSaved(artwork.id)
                     }
-
-                    ActionChip(icon: "square.and.arrow.up", label: "Share") {
-                        showShareSheet = true
+                    ShareLink(item: "\(artwork.title) by \(artwork.artistName) on Artist Folio") {
+                        chipLabel(icon: "square.and.arrow.up", label: "Share", tint: .afTextSecondary)
                     }
-
-                    ActionChip(
-                        icon: appState.isFavorite(artworkId: artwork.id) ? "heart.fill" : "heart",
-                        label: appState.isFavorite(artworkId: artwork.id) ? "Saved" : "Save",
-                        tint: appState.isFavorite(artworkId: artwork.id) ? .afError : nil
-                    ) {
-                        appState.toggleFavorite(artworkId: artwork.id)
-                    }
-
-                    if artwork.hasCertificate {
-                        ActionChip(icon: "checkmark.seal", label: "Certificate", tint: .afAccent) {
-                            showCertificate = true
-                        }
-                    }
+                    Spacer()
                 }
-                .padding(.horizontal, AFSpacing.md)
-                .padding(.vertical, AFSpacing.md)
+                .padding(AFSpacing.md)
 
-                // Main content
                 VStack(alignment: .leading, spacing: AFSpacing.lg) {
-                    // Title & Price
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(artwork.title)
-                                .font(AFFont.displaySmall)
-                                .foregroundColor(.afTextPrimary)
-
-                            Text(artwork.medium.rawValue + " · " + String(artwork.year))
+                            Text(artwork.title).font(AFFont.displaySmall).foregroundColor(.afTextPrimary)
+                            Text("\(artwork.medium.rawValue) · \(String(artwork.year))")
                                 .font(AFFont.bodySmall)
                                 .foregroundColor(.afTextSecondary)
                         }
-
                         Spacer()
-
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("$\(Int(artwork.price))")
-                                .font(AFFont.priceLarge)
-                                .foregroundStyle(AFGradient.primaryGold)
-
-                            if let original = artwork.originalPrice {
-                                Text("$\(Int(original))")
-                                    .font(AFFont.bodySmall)
-                                    .foregroundColor(.afTextTertiary)
-                                    .strikethrough()
-                            }
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text(artwork.priceText).font(AFFont.priceLarge).foregroundColor(.afPrimary)
+                            if artwork.status != .available { StatusBadge(status: artwork.status) }
                         }
                     }
 
-                    // Stats row
-                    HStack(spacing: AFSpacing.lg) {
-                        StatBadge(icon: "eye", value: "\(artwork.viewsCount)", label: "views")
-                        StatBadge(icon: "heart", value: "\(artwork.likesCount)", label: "likes")
-                        StatBadge(icon: "ruler", value: artwork.dimensions.displayString, label: "size")
-                    }
+                    Divider()
 
-                    Divider().background(Color.afBorder)
-
-                    // Artist info
-                    Button {
-                        showArtistProfile = true
-                    } label: {
+                    NavigationLink(value: ArtistLink(id: artwork.artistId)) {
                         HStack(spacing: AFSpacing.md) {
-                            Circle()
-                                .fill(Color.afSurface2)
-                                .frame(width: 48, height: 48)
-                                .overlay(
-                                    Text(artwork.artistName.prefix(1))
-                                        .font(.system(size: 20, weight: .semibold))
-                                        .foregroundColor(.afAccent)
-                                )
-
+                            AvatarCircle(name: artwork.artistName, url: artist?.avatarURL, size: 48)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(artwork.artistName)
-                                    .font(AFFont.headlineSmall)
-                                    .foregroundColor(.afTextPrimary)
-                                Text("View profile")
-                                    .font(AFFont.caption)
-                                    .foregroundColor(.afTextSecondary)
+                                Text(artwork.artistName).font(AFFont.headlineSmall).foregroundColor(.afTextPrimary)
+                                Text("View profile").font(AFFont.caption).foregroundColor(.afTextSecondary)
                             }
-
                             Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 12)).foregroundColor(.afTextTertiary)
+                        }
+                    }
+                    .buttonStyle(.plain)
 
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12))
-                                .foregroundColor(.afTextTertiary)
+                    Divider()
+
+                    if !artwork.details.isEmpty {
+                        VStack(alignment: .leading, spacing: AFSpacing.xs) {
+                            Text("About this piece").font(AFFont.headlineSmall).foregroundColor(.afTextPrimary)
+                            Text(artwork.details).font(AFFont.bodyMedium).foregroundColor(.afTextSecondary).lineSpacing(4)
                         }
                     }
 
-                    Divider().background(Color.afBorder)
+                    detailsTable
 
-                    // Description
-                    VStack(alignment: .leading, spacing: AFSpacing.xs) {
-                        Text("About this piece")
-                            .font(AFFont.headlineSmall)
-                            .foregroundColor(.afTextPrimary)
-
-                        Text(artwork.description)
-                            .font(AFFont.bodyMedium)
-                            .foregroundColor(.afTextSecondary)
-                            .lineSpacing(4)
-                    }
-
-                    // Details table
-                    ArtworkDetailsTable(artwork: artwork)
-
-                    // Tags
                     if !artwork.tags.isEmpty {
-                        VStack(alignment: .leading, spacing: AFSpacing.xs) {
-                            Text("Tags")
-                                .font(AFFont.headlineSmall)
-                                .foregroundColor(.afTextPrimary)
-
-                            FlowLayout(spacing: AFSpacing.xs) {
-                                ForEach(artwork.tags, id: \.self) { tag in
-                                    Text("#\(tag)")
-                                        .font(AFFont.labelMedium)
-                                        .foregroundColor(.afAccent)
-                                        .padding(.horizontal, AFSpacing.sm)
-                                        .padding(.vertical, AFSpacing.xxs)
-                                        .background(Color.afAccent.opacity(0.1))
-                                        .clipShape(Capsule())
-                                }
+                        FlowLayout(spacing: AFSpacing.xs) {
+                            ForEach(artwork.tags, id: \.self) { tag in
+                                Text("#\(tag)")
+                                    .font(AFFont.labelMedium)
+                                    .foregroundColor(.afPrimary)
+                                    .padding(.horizontal, AFSpacing.sm)
+                                    .padding(.vertical, AFSpacing.xxs)
+                                    .background(Color.afPrimaryBg)
+                                    .clipShape(Capsule())
                             }
                         }
                     }
 
-                    // Color palette
-                    if !artwork.colorPalette.isEmpty {
-                        VStack(alignment: .leading, spacing: AFSpacing.xs) {
-                            Text("Color Palette")
-                                .font(AFFont.headlineSmall)
-                                .foregroundColor(.afTextPrimary)
-
-                            HStack(spacing: AFSpacing.xs) {
-                                ForEach(artwork.colorPalette, id: \.self) { hex in
-                                    Circle()
-                                        .fill(Color(hex: hex))
-                                        .frame(width: 32, height: 32)
-                                        .overlay(Circle().stroke(Color.afBorder, lineWidth: 1))
-                                }
-                            }
-                        }
-                    }
+                    Text("Artist Folio does not process sales. Arrange payment and delivery directly with the artist.")
+                        .font(AFFont.caption)
+                        .foregroundColor(.afTextSecondary)
                 }
                 .padding(.horizontal, AFSpacing.md)
-                .padding(.bottom, 120) // room for buy button
+                .padding(.bottom, AFSpacing.lg)
             }
         }
         .background(Color.afBackground)
+        .onAppear { appState.tabBarHiders += 1 }
+        .onDisappear { appState.tabBarHiders -= 1 }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.afTextPrimary)
-                }
-            }
-        }
-        .overlay(alignment: .bottom) {
-            // Buy / Add to Cart bar
-            BuyBar(artwork: artwork, addedToCart: $addedToCart) {
-                if artwork.status == .available {
-                    showBuySheet = true
-                }
-            } addToCart: {
-                appState.addToCart(artwork)
-                withAnimation { addedToCart = true }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    addedToCart = false
-                }
-            }
-        }
-        .sheet(isPresented: $showARPreview) {
-            ARPreviewView(artwork: artwork)
-        }
-        .sheet(isPresented: $showBuySheet) {
-            CheckoutView(artwork: artwork)
-        }
-        .sheet(isPresented: $showCertificate) {
-            CertificateView(artwork: artwork)
-        }
-        .navigationDestination(isPresented: $showArtistProfile) {
-            ArtistProfileView(artistId: artwork.artistId)
-        }
-    }
-}
-
-// MARK: - Image Gallery
-
-struct ArtworkImageGallery: View {
-    let imageURLs: [String]
-    @Binding var selectedIndex: Int
-    let colorPalette: [String]
-
-    var body: some View {
-        ZStack {
-            // Main image
-            TabView(selection: $selectedIndex) {
-                ForEach(Array(imageURLs.enumerated()), id: \.offset) { index, url in
-                    ZStack {
-                        // Color placeholder
-                        Rectangle()
-                            .fill(Color.afSurface)
-                            .overlay(
-                                LinearGradient(
-                                    colors: colorPalette.prefix(2).map { Color(hex: $0) } + [Color.afSurface],
-                                    startPoint: .topLeading, endPoint: .bottomTrailing
-                                ).opacity(0.7)
-                            )
-
-                        Image(systemName: "photo.artframe")
-                            .font(.system(size: 60, weight: .ultraLight))
-                            .foregroundColor(.white.opacity(0.2))
+            if !isOwner {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("Report Artwork", systemImage: "flag") { showReport = true }
+                        Button("Block Artist", systemImage: "hand.raised", role: .destructive) { showBlockConfirm = true }
+                    } label: {
+                        Image(systemName: "ellipsis.circle").foregroundColor(.afTextPrimary)
                     }
-                    .tag(index)
+                    .accessibilityLabel("More options")
                 }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 380)
-
-            // Bottom gradient
-            VStack {
-                Spacer()
-                LinearGradient(
-                    colors: [Color.clear, Color.afBackground.opacity(0.6)],
-                    startPoint: .top, endPoint: .bottom
-                )
-                .frame(height: 80)
+        }
+        .safeAreaInset(edge: .bottom) { bottomBar }
+        .confirmationDialog("Contact \(artwork.artistName)", isPresented: $showContact, titleVisibility: .visible) {
+            ForEach(artist?.contactOptions ?? []) { option in
+                Link(option.kind.rawValue, destination: option.url)
             }
         }
-        .frame(height: 380)
+        .confirmationDialog("Block \(artwork.artistName)?", isPresented: $showBlockConfirm, titleVisibility: .visible) {
+            Button("Block Artist", role: .destructive) {
+                appState.setBlocked(artwork.artistId, blocked: true)
+                dismiss()
+            }
+        } message: {
+            Text("You won't see their work. You can unblock them from Profile.")
+        }
+        .sheet(isPresented: $showReport) {
+            ReportSheet(target: .artwork, targetID: artwork.id, name: artwork.title)
+        }
+        .sheet(isPresented: $showEditor) {
+            ArtworkEditorView(existing: artwork) { updated in
+                if let updated { artwork = updated } else { dismiss() }
+            }
+        }
+        .task(id: artwork.id) {
+            artist = try? await appState.backend.profile(ownerID: artwork.artistId)
+            imageURLs = (try? await appState.backend.fullImages(artworkID: artwork.id)) ?? []
+        }
+    }
 
-        // Thumbnail strip
-        if imageURLs.count > 1 {
-            HStack(spacing: AFSpacing.xs) {
-                ForEach(Array(imageURLs.enumerated()), id: \.offset) { index, _ in
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.afSurface2)
-                        .frame(width: 52, height: 52)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(index == selectedIndex ? Color.afAccent : Color.clear, lineWidth: 2)
-                        )
-                        .onTapGesture { selectedIndex = index }
+    private var gallery: some View {
+        VStack(spacing: AFSpacing.xs) {
+            TabView(selection: $selectedImage) {
+                if galleryURLs.isEmpty {
+                    CloudImage(url: nil).tag(0)
+                }
+                ForEach(Array(galleryURLs.enumerated()), id: \.offset) { index, url in
+                    CloudImage(url: url, maxPixels: 1600, contentMode: .fit).tag(index)
                 }
             }
-            .padding(.horizontal, AFSpacing.md)
-            .padding(.vertical, AFSpacing.sm)
+            .tabViewStyle(.page(indexDisplayMode: galleryURLs.count > 1 ? .automatic : .never))
+            .frame(height: 400)
+            .background(Color.afSurface2)
+            .accessibilityLabel("Photos of \(artwork.title)")
         }
     }
-}
 
-// MARK: - Action Chip
-
-struct ActionChip: View {
-    let icon: String
-    let label: String
-    var tint: Color?
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .medium))
-                Text(label)
-                    .font(AFFont.captionBold)
-            }
-            .foregroundColor(tint ?? .afTextSecondary)
-            .padding(.horizontal, AFSpacing.sm)
-            .padding(.vertical, AFSpacing.xs)
-            .background((tint ?? Color.afTextSecondary).opacity(0.1))
-            .clipShape(Capsule())
-        }
-    }
-}
-
-// MARK: - Stat Badge
-
-struct StatBadge: View {
-    let icon: String
-    let value: String
-    let label: String
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 12))
-                .foregroundColor(.afTextTertiary)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(value)
-                    .font(AFFont.captionBold)
-                    .foregroundColor(.afTextPrimary)
-                Text(label)
-                    .font(.system(size: 10))
-                    .foregroundColor(.afTextTertiary)
-            }
-        }
-    }
-}
-
-// MARK: - Artwork Details Table
-
-struct ArtworkDetailsTable: View {
-    let artwork: Artwork
-
-    var rows: [(String, String)] {
-        [
+    private var detailsTable: some View {
+        let rows = [
             ("Medium", artwork.medium.rawValue),
             ("Style", artwork.style.rawValue),
             ("Dimensions", artwork.dimensions.displayString),
             ("Year", String(artwork.year)),
-            ("Certificate", artwork.hasCertificate ? "Blockchain verified" : "Not included"),
-            ("Status", artwork.status.rawValue.capitalized),
+            ("Status", artwork.status.label)
         ]
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
+        return VStack(spacing: 0) {
             ForEach(rows, id: \.0) { row in
                 HStack {
-                    Text(row.0)
-                        .font(AFFont.bodySmall)
-                        .foregroundColor(.afTextSecondary)
+                    Text(row.0).foregroundColor(.afTextSecondary)
                     Spacer()
-                    Text(row.1)
-                        .font(AFFont.bodySmall)
-                        .foregroundColor(.afTextPrimary)
+                    Text(row.1).foregroundColor(.afTextPrimary)
                 }
+                .font(AFFont.bodySmall)
                 .padding(.vertical, AFSpacing.sm)
-
-                if row.0 != rows.last?.0 {
-                    Divider().background(Color.afBorder)
-                }
+                .accessibilityElement(children: .combine)
+                if row.0 != rows.last?.0 { Divider() }
             }
         }
-        .padding(AFSpacing.md)
-        .background(Color.afSurface)
+        .padding(.horizontal, AFSpacing.md)
+        .background(Color.afSurface2)
         .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
     }
-}
 
-// MARK: - Buy Bar
-
-struct BuyBar: View {
-    let artwork: Artwork
-    @Binding var addedToCart: Bool
-    let onBuy: () -> Void
-    let addToCart: () -> Void
-
-    var body: some View {
-        HStack(spacing: AFSpacing.sm) {
-            // Add to cart
-            Button(action: addToCart) {
-                ZStack {
-                    Image(systemName: addedToCart ? "checkmark" : "bag.badge.plus")
-                        .font(.system(size: 18))
-                        .foregroundColor(addedToCart ? .afSuccess : .afTextPrimary)
+    @ViewBuilder
+    private var bottomBar: some View {
+        Group {
+            if isOwner {
+                Button("Edit Artwork") { showEditor = true }
+                    .buttonStyle(AFPrimaryButtonStyle())
+            } else if artwork.status == .sold {
+                Text("This piece has sold")
+                    .font(AFFont.headlineSmall)
+                    .foregroundColor(.afTextSecondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(Color.afSurface2)
+                    .clipShape(Capsule())
+            } else if let options = artist?.contactOptions, !options.isEmpty {
+                Button { showContact = true } label: {
+                    Label("Contact Artist", systemImage: "paperplane.fill")
                 }
-                .frame(width: 52, height: 52)
-                .background(Color.afSurface)
-                .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: AFRadius.md)
-                        .stroke(addedToCart ? Color.afSuccess : Color.afBorder, lineWidth: 1)
-                )
+                .buttonStyle(AFPrimaryButtonStyle())
+            } else {
+                Text("No contact details available")
+                    .font(AFFont.headlineSmall)
+                    .foregroundColor(.afTextSecondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
             }
-
-            // Buy now
-            Button(action: onBuy) {
-                HStack {
-                    Image(systemName: "creditcard")
-                        .font(.system(size: 16))
-                    Text(artwork.status == .available ? "Buy Now · $\(Int(artwork.price))" : artwork.status.rawValue.capitalized)
-                        .font(AFFont.headlineSmall)
-                }
-                .foregroundColor(artwork.status == .available ? Color.afPrimary : Color.afTextSecondary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(artwork.status == .available ? AFGradient.primaryGold : LinearGradient(colors: [Color.afSurface], startPoint: .leading, endPoint: .trailing))
-                .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-            }
-            .disabled(artwork.status != .available)
         }
         .padding(.horizontal, AFSpacing.md)
         .padding(.vertical, AFSpacing.sm)
-        .background(
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .overlay(Color.afSurface.opacity(0.9))
-                .ignoresSafeArea(edges: .bottom)
-        )
+        .background(.ultraThinMaterial)
+    }
+
+    private func chip(icon: String, label: String, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) { chipLabel(icon: icon, label: label, tint: tint) }
+    }
+
+    private func chipLabel(icon: String, label: String, tint: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon).font(.system(size: 13, weight: .medium))
+            Text(label).font(AFFont.captionBold)
+        }
+        .foregroundColor(tint)
+        .padding(.horizontal, AFSpacing.md)
+        .frame(height: 36)
+        .background(tint.opacity(0.1))
+        .clipShape(Capsule())
     }
 }
 
-// MARK: - FlowLayout
-
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 300
-        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > width {
-                x = 0; y += rowHeight + spacing; rowHeight = 0
-            }
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
-        return CGSize(width: width, height: y + rowHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > bounds.maxX {
-                x = bounds.minX; y += rowHeight + spacing; rowHeight = 0
-            }
-            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
-    }
-}
-
-// MARK: - Certificate View
-
-struct CertificateView: View {
-    let artwork: Artwork
-    @Environment(\.dismiss) var dismiss
+struct ReportSheet: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    let target: ReportTarget
+    let targetID: String
+    let name: String
+    @State private var reason: ReportReason = .stolen
+    @State private var note = ""
+    @State private var isSending = false
+    @State private var didSend = false
 
     var body: some View {
-        VStack(spacing: AFSpacing.lg) {
-            HStack {
-                Text("Certificate of Authenticity")
-                    .font(AFFont.headlineLarge)
-                    .foregroundColor(.afTextPrimary)
-                Spacer()
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.afTextTertiary)
+        NavigationStack {
+            Group {
+                if didSend {
+                    EmptyStateView(icon: "checkmark.shield", title: "Report Received", subtitle: "Thank you. We review reports within 24 hours.", actionTitle: "Done") {
+                        dismiss()
+                    }
+                    .frame(maxHeight: .infinity)
+                } else {
+                    Form {
+                        Section("Reporting \(name)") {
+                            Picker("Reason", selection: $reason) {
+                                ForEach(ReportReason.allCases) { Text($0.rawValue).tag($0) }
+                            }
+                            .pickerStyle(.inline)
+                            .labelsHidden()
+                        }
+                        Section("Details (optional)") {
+                            TextField("Add anything that helps us review this", text: $note, axis: .vertical)
+                                .lineLimit(3...6)
+                        }
+                    }
+                    .tint(.afPrimary)
                 }
             }
-            .padding(.top, AFSpacing.xl)
-
-            // Certificate card
-            VStack(spacing: AFSpacing.md) {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(AFGradient.primaryGold)
-
-                Text(artwork.title)
-                    .font(AFFont.displaySmall)
-                    .foregroundColor(.afTextPrimary)
-                    .multilineTextAlignment(.center)
-
-                Text("by \(artwork.artistName)")
-                    .font(AFFont.bodyMedium)
-                    .foregroundColor(.afTextSecondary)
-
-                Divider().background(Color.afBorder)
-
-                if let hash = artwork.certificateHash {
-                    VStack(spacing: 4) {
-                        Text("Blockchain Hash")
-                            .font(AFFont.captionBold)
-                            .foregroundColor(.afTextTertiary)
-                        Text(hash)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.afAccent)
-                            .multilineTextAlignment(.center)
+            .navigationTitle("Report")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if !didSend {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        if isSending {
+                            ProgressView()
+                        } else {
+                            Button("Submit") {
+                                Task {
+                                    isSending = true
+                                    didSend = await appState.report(target: target, targetID: targetID, reason: reason, note: note.trimmed)
+                                    isSending = false
+                                }
+                            }
+                        }
                     }
                 }
-
-                Text("This certificate is permanently stored on the blockchain and transfers with the artwork.")
-                    .font(AFFont.caption)
-                    .foregroundColor(.afTextSecondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(AFSpacing.xl)
-            .background(Color.afSurface)
-            .clipShape(RoundedRectangle(cornerRadius: AFRadius.xl))
-            .overlay(
-                RoundedRectangle(cornerRadius: AFRadius.xl)
-                    .stroke(Color.afAccent.opacity(0.3), lineWidth: 1)
-            )
-
-            Spacer()
-        }
-        .padding(.horizontal, AFSpacing.lg)
-        .background(Color.afBackground.ignoresSafeArea())
-    }
-}
-
-// MARK: - AR Preview View (stub - implement with RealityKit)
-
-struct ARPreviewView: View {
-    let artwork: Artwork
-    @Environment(\.dismiss) var dismiss
-
-    var body: some View {
-        ZStack {
-            // ARViewContainer() would go here
-            // Using RealityKit ARView wrapped in UIViewRepresentable
-            Color.black.ignoresSafeArea()
-
-            VStack {
-                HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.white)
-                    }
-                    .padding()
-                    Spacer()
-                }
-                Spacer()
-
-                VStack(spacing: AFSpacing.sm) {
-                    Image(systemName: "arkit")
-                        .font(.system(size: 50))
-                        .foregroundColor(.white.opacity(0.7))
-
-                    Text("Point your camera at a wall")
-                        .font(AFFont.headlineSmall)
-                        .foregroundColor(.white)
-
-                    Text("AR Preview requires a physical device with LiDAR or ARKit support.")
-                        .font(AFFont.caption)
-                        .foregroundColor(.white.opacity(0.6))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, AFSpacing.xl)
-                }
-                .padding(.bottom, AFSpacing.xxxl)
             }
         }
     }
-}
-
-#Preview {
-    NavigationStack {
-        ArtworkDetailView(artwork: Artwork.previews[0])
-    }
-    .environmentObject(AppState())
 }

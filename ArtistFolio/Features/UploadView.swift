@@ -1,487 +1,276 @@
-// MARK: - Upload / Artist Studio
-import SwiftUI
 import PhotosUI
+import SwiftUI
 
-struct UploadView: View {
+struct ArtworkEditorView: View {
     @EnvironmentObject var appState: AppState
-    @Environment(\.dismiss) var dismiss
-    @StateObject private var vm = UploadViewModel()
+    @Environment(\.dismiss) private var dismiss
+    let existing: Artwork?
+    var onFinished: ((Artwork?) -> Void)?
+
+    @State private var pickerItems: [PhotosPickerItem] = []
+    @State private var previews: [UIImage] = []
+    @State private var processed: [ProcessedImage] = []
+    @State private var title = ""
+    @State private var details = ""
+    @State private var medium: ArtworkMedium = .oilOnCanvas
+    @State private var style: ArtworkStyle = .abstract
+    @State private var status: ArtworkStatus = .available
+    @State private var width = ""
+    @State private var height = ""
+    @State private var unit = "cm"
+    @State private var year = String(Calendar.current.component(.year, from: Date()))
+    @State private var price = ""
+    @State private var tags = ""
+    @State private var isProcessing = false
+    @State private var isSaving = false
+    @State private var showDelete = false
+    @State private var errorMessage: String?
+
+    private static let maxPhotos = 5
+
+    init(existing: Artwork?, onFinished: ((Artwork?) -> Void)? = nil) {
+        self.existing = existing
+        self.onFinished = onFinished
+    }
+
+    private var parsedPrice: Double? { positive(price) }
+    private var parsedWidth: Double? { positive(width) }
+    private var parsedHeight: Double? { positive(height) }
+    private var parsedYear: Int? {
+        guard let value = Int(year), (1000...Calendar.current.component(.year, from: Date())).contains(value) else { return nil }
+        return value
+    }
+
+    private var validationMessage: String? {
+        if existing == nil && processed.isEmpty { return "Add at least one photo." }
+        if title.trimmed.isEmpty { return "Add a title." }
+        if parsedPrice == nil { return "Enter a price above zero." }
+        if parsedWidth == nil || parsedHeight == nil { return "Enter width and height." }
+        if parsedYear == nil { return "Enter a valid year." }
+        return nil
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: AFSpacing.lg) {
-                    // Image picker
-                    ImagePickerSection(images: $vm.selectedImages, photosPickerItems: $vm.photosPickerItems)
+                VStack(alignment: .leading, spacing: AFSpacing.lg) {
+                    photoSection
+                    FormField(label: "TITLE", placeholder: "Name your artwork", text: $title)
+                    TextAreaField(label: "DESCRIPTION", placeholder: "Describe the piece", text: $details)
 
-                    // Title
-                    AFTextField(placeholder: "Artwork title", text: $vm.title, icon: "textformat")
+                    HStack(spacing: AFSpacing.sm) {
+                        menu("MEDIUM", selection: $medium, options: ArtworkMedium.allCases, label: \.rawValue)
+                        menu("STYLE", selection: $style, options: ArtworkStyle.allCases, label: \.rawValue)
+                    }
 
-                    // Description
-                    TextEditorField(placeholder: "Describe your artwork...", text: $vm.description)
+                    HStack(alignment: .bottom, spacing: AFSpacing.sm) {
+                        FormField(label: "WIDTH", placeholder: "60", text: $width, keyboardType: .decimalPad)
+                        FormField(label: "HEIGHT", placeholder: "80", text: $height, keyboardType: .decimalPad)
+                        Picker("Unit", selection: $unit) {
+                            Text("cm").tag("cm")
+                            Text("in").tag("in")
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 90, height: 50)
+                    }
 
-                    // Medium & Style
-                    PickerRow(label: "Medium", options: ArtworkMedium.allCases.map { $0.rawValue }, selected: Binding(
-                        get: { vm.medium.rawValue },
-                        set: { val in vm.medium = ArtworkMedium.allCases.first { $0.rawValue == val } ?? .oilOnCanvas }
-                    ))
+                    HStack(spacing: AFSpacing.sm) {
+                        FormField(label: "PRICE (USD)", placeholder: "1200", text: $price, keyboardType: .decimalPad)
+                        FormField(label: "YEAR", placeholder: "2026", text: $year, keyboardType: .numberPad)
+                    }
 
-                    PickerRow(label: "Style", options: ArtworkStyle.allCases.map { $0.rawValue }, selected: Binding(
-                        get: { vm.style.rawValue },
-                        set: { val in vm.style = ArtworkStyle.allCases.first { $0.rawValue == val } ?? .abstract }
-                    ))
+                    FormField(label: "TAGS (COMMA SEPARATED)", placeholder: "ocean, blue, calm", text: $tags, autocapitalize: false)
 
-                    // Dimensions
-                    DimensionsSection(width: $vm.width, height: $vm.height, unit: $vm.unit)
+                    if existing != nil {
+                        menu("STATUS", selection: $status, options: ArtworkStatus.allCases, label: \.label)
+                    }
 
-                    // Year
-                    AFTextField(placeholder: "Year created", text: $vm.year, icon: "calendar", keyboardType: .numberPad)
+                    if let message = errorMessage ?? validationMessage {
+                        Text(message)
+                            .font(AFFont.bodySmall)
+                            .foregroundColor(errorMessage == nil ? .afTextSecondary : .afError)
+                    }
 
-                    // Pricing section
-                    PricingSection(vm: vm)
-
-                    // Shipping
-                    ShippingSection(includeShipping: $vm.includesShipping, shippingPrice: $vm.shippingPrice)
-
-                    // Certificate
-                    CertificateToggle(isEnabled: $vm.addCertificate)
-
-                    // Upload button
                     Button {
-                        Task { await vm.upload() }
+                        Task { await save() }
                     } label: {
-                        ZStack {
-                            if vm.isUploading {
-                                HStack(spacing: AFSpacing.sm) {
-                                    ProgressView().tint(Color.afPrimary)
-                                    Text("Uploading...")
-                                        .font(AFFont.headlineMedium)
-                                        .foregroundColor(Color.afPrimary)
-                                }
-                            } else {
-                                Text("List Artwork · $\(vm.price.isEmpty ? "0" : vm.price)")
-                                    .font(AFFont.headlineMedium)
-                                    .foregroundColor(Color.afPrimary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(vm.canUpload ? AFGradient.primaryGold : LinearGradient(colors: [Color.afBorder], startPoint: .leading, endPoint: .trailing))
-                        .clipShape(RoundedRectangle(cornerRadius: AFRadius.full))
+                        if isSaving { ProgressView().tint(.white) } else { Text(existing == nil ? "Publish Artwork" : "Save Changes") }
                     }
-                    .disabled(!vm.canUpload || vm.isUploading)
+                    .buttonStyle(AFPrimaryButtonStyle())
+                    .opacity(validationMessage == nil ? 1 : 0.45)
+                    .disabled(validationMessage != nil || isSaving || isProcessing)
 
-                    if let error = vm.errorMessage {
-                        Text(error).font(AFFont.caption).foregroundColor(.afError)
-                    }
-
-                    if vm.uploadSuccess {
-                        VStack(spacing: AFSpacing.sm) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(.afSuccess)
-                            Text("Artwork listed successfully!")
-                                .font(AFFont.headlineSmall)
-                                .foregroundColor(.afTextPrimary)
-                        }
-                        .padding()
+                    if existing != nil {
+                        Button("Delete Artwork", role: .destructive) { showDelete = true }
+                            .font(AFFont.headlineSmall)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
                 }
-                .padding(.horizontal, AFSpacing.md)
-                .padding(.bottom, AFSpacing.xxxl)
+                .padding(AFSpacing.lg)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Color.afBackground)
-            .navigationTitle("List Artwork")
+            .navigationTitle(existing == nil ? "New Artwork" : "Edit Artwork")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(.afTextSecondary)
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }.foregroundColor(.afTextSecondary)
                 }
             }
+            .confirmationDialog("Delete this artwork?", isPresented: $showDelete, titleVisibility: .visible) {
+                Button("Delete Permanently", role: .destructive) { Task { await delete() } }
+            } message: {
+                Text("This cannot be undone.")
+            }
+        }
+        .interactiveDismissDisabled(isSaving)
+        .onAppear(perform: populate)
+        .onChange(of: pickerItems) { _, items in
+            Task { await loadPhotos(items) }
         }
     }
-}
 
-// MARK: - Image Picker
-
-struct ImagePickerSection: View {
-    @Binding var images: [UIImage]
-    @Binding var photosPickerItems: [PhotosPickerItem]
-
-    var body: some View {
+    private var photoSection: some View {
         VStack(alignment: .leading, spacing: AFSpacing.sm) {
-            Text("Photos (up to 8)")
-                .font(AFFont.headlineSmall)
-                .foregroundColor(.afTextPrimary)
-
+            Text("PHOTOS (UP TO \(Self.maxPhotos))").font(AFFont.sectionHeader).foregroundColor(.afTextSecondary).tracking(0.5)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AFSpacing.sm) {
-                    // Add button
-                    PhotosPicker(selection: $photosPickerItems, maxSelectionCount: 8, matching: .images) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: AFRadius.md)
-                                .fill(Color.afSurface)
-                                .frame(width: 88, height: 88)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: AFRadius.md)
-                                        .stroke(Color.afBorder, style: StrokeStyle(lineWidth: 1, dash: [4]))
-                                )
-
-                            VStack(spacing: 4) {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 22, weight: .medium))
-                                Text("Add")
-                                    .font(AFFont.caption)
-                            }
-                            .foregroundColor(.afTextTertiary)
+                    PhotosPicker(selection: $pickerItems, maxSelectionCount: Self.maxPhotos, matching: .images) {
+                        VStack(spacing: 4) {
+                            if isProcessing { ProgressView() } else { Image(systemName: "plus").font(.system(size: 22, weight: .medium)) }
+                            Text(existing == nil ? "Add" : "Replace").font(AFFont.caption)
                         }
-                    }
-
-                    // Selected images
-                    ForEach(Array(images.enumerated()), id: \.offset) { index, image in
-                        ZStack(alignment: .topTrailing) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 88, height: 88)
-                                .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-
-                            Button {
-                                images.remove(at: index)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white)
-                                    .shadow(radius: 2)
-                            }
-                            .offset(x: 6, y: -6)
-                        }
-                    }
-                }
-            }
-        }
-        .onChange(of: photosPickerItems) { _, items in
-            Task {
-                var loaded: [UIImage] = []
-                for item in items {
-                    if let data = try? await item.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
-                        loaded.append(image)
-                    }
-                }
-                images = loaded
-            }
-        }
-    }
-}
-
-// MARK: - Pricing Section with AI
-
-struct PricingSection: View {
-    @ObservedObject var vm: UploadViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.sm) {
-            HStack {
-                Text("Pricing")
-                    .font(AFFont.headlineSmall)
-                    .foregroundColor(.afTextPrimary)
-
-                Spacer()
-
-                // AI Pricing button
-                if Config.aiPricingEnabled {
-                    Button {
-                        Task { await vm.getAIPricingSuggestion() }
-                    } label: {
-                        HStack(spacing: 4) {
-                            if vm.isLoadingAIPrice {
-                                ProgressView().tint(Color.afPrimary).scaleEffect(0.7)
-                            } else {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 12))
-                            }
-                            Text("AI Suggest")
-                                .font(AFFont.captionBold)
-                        }
-                        .foregroundColor(Color.afPrimary)
-                        .padding(.horizontal, AFSpacing.sm)
-                        .padding(.vertical, 6)
-                        .background(Color.afAccent)
-                        .clipShape(Capsule())
-                    }
-                    .disabled(vm.isLoadingAIPrice)
-                }
-            }
-
-            AFTextField(placeholder: "Price in USD", text: $vm.price, icon: "dollarsign", keyboardType: .decimalPad)
-
-            // AI suggestion card
-            if let suggestion = vm.pricingSuggestion {
-                AIPricingCard(suggestion: suggestion) { price in
-                    vm.price = String(Int(price))
-                }
-            }
-        }
-    }
-}
-
-struct AIPricingCard: View {
-    let suggestion: PricingSuggestion
-    let onAccept: (Double) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.sm) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundColor(.afAccent)
-                Text("AI Pricing Insight")
-                    .font(AFFont.captionBold)
-                    .foregroundColor(.afAccent)
-                Spacer()
-                Text("\(Int(suggestion.confidence * 100))% confidence")
-                    .font(AFFont.caption)
-                    .foregroundColor(.afTextTertiary)
-            }
-
-            HStack(spacing: AFSpacing.lg) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Range")
-                        .font(AFFont.caption)
-                        .foregroundColor(.afTextTertiary)
-                    Text("$\(Int(suggestion.suggestedMinPrice)) – $\(Int(suggestion.suggestedMaxPrice))")
-                        .font(AFFont.headlineSmall)
-                        .foregroundColor(.afTextPrimary)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Recommended")
-                        .font(AFFont.caption)
-                        .foregroundColor(.afTextTertiary)
-                    Text("$\(Int(suggestion.recommendedPrice))")
-                        .font(AFFont.headlineSmall)
-                        .foregroundStyle(AFGradient.primaryGold)
-                }
-
-                Spacer()
-
-                Button {
-                    onAccept(suggestion.recommendedPrice)
-                } label: {
-                    Text("Use")
-                        .font(AFFont.captionBold)
-                        .foregroundColor(Color.afPrimary)
-                        .padding(.horizontal, AFSpacing.md)
-                        .padding(.vertical, 6)
-                        .background(Color.afAccent)
-                        .clipShape(Capsule())
-                }
-            }
-
-            // Factors
-            ForEach(suggestion.factors.prefix(3)) { factor in
-                HStack(spacing: AFSpacing.xs) {
-                    Image(systemName: factor.impact == "positive" ? "arrow.up" : factor.impact == "negative" ? "arrow.down" : "minus")
-                        .font(.system(size: 10))
-                        .foregroundColor(factor.impact == "positive" ? .afSuccess : factor.impact == "negative" ? .afError : .afTextTertiary)
-                    Text(factor.description)
-                        .font(AFFont.caption)
                         .foregroundColor(.afTextSecondary)
+                        .frame(width: 88, height: 88)
+                        .background(Color.afSurface2)
+                        .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
+                        .overlay(RoundedRectangle(cornerRadius: AFRadius.md).stroke(Color.afBorder, style: StrokeStyle(lineWidth: 1, dash: [4])))
+                    }
+                    .accessibilityLabel(existing == nil ? "Add photos" : "Replace photos")
+
+                    if previews.isEmpty, let url = existing?.thumbnailURL {
+                        CloudImage(url: url, maxPixels: 300)
+                            .frame(width: 88, height: 88)
+                            .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
+                    }
+                    ForEach(Array(previews.enumerated()), id: \.offset) { _, image in
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 88, height: 88)
+                            .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
+                            .accessibilityLabel("Selected photo")
+                    }
                 }
             }
         }
-        .padding(AFSpacing.md)
-        .background(Color.afAccent.opacity(0.07))
-        .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: AFRadius.md)
-                .stroke(Color.afAccent.opacity(0.25), lineWidth: 1)
-        )
     }
-}
 
-// MARK: - Supporting Views
-
-struct DimensionsSection: View {
-    @Binding var width: String
-    @Binding var height: String
-    @Binding var unit: String
-
-    var body: some View {
+    private func menu<T: Hashable & Identifiable>(_ title: String, selection: Binding<T>, options: [T], label: KeyPath<T, String>) -> some View {
         VStack(alignment: .leading, spacing: AFSpacing.xs) {
-            Text("Dimensions")
-                .font(AFFont.headlineSmall)
-                .foregroundColor(.afTextPrimary)
-
-            HStack(spacing: AFSpacing.sm) {
-                AFTextField(placeholder: "Width", text: $width, icon: "arrow.left.and.right", keyboardType: .decimalPad)
-                AFTextField(placeholder: "Height", text: $height, icon: "arrow.up.and.down", keyboardType: .decimalPad)
-
-                Picker("Unit", selection: $unit) {
-                    Text("cm").tag("cm")
-                    Text("in").tag("in")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 80)
-            }
-        }
-    }
-}
-
-struct PickerRow: View {
-    let label: String
-    let options: [String]
-    @Binding var selected: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.xs) {
-            Text(label)
-                .font(AFFont.headlineSmall)
-                .foregroundColor(.afTextPrimary)
-
+            Text(title).font(AFFont.sectionHeader).foregroundColor(.afTextSecondary).tracking(0.5)
             Menu {
-                ForEach(options, id: \.self) { option in
-                    Button(option) { selected = option }
+                ForEach(options) { option in
+                    Button(option[keyPath: label]) { selection.wrappedValue = option }
                 }
             } label: {
                 HStack {
-                    Text(selected.isEmpty ? "Select \(label)" : selected)
-                        .font(AFFont.bodyMedium)
-                        .foregroundColor(selected.isEmpty ? .afTextTertiary : .afTextPrimary)
+                    Text(selection.wrappedValue[keyPath: label]).font(AFFont.bodyMedium).foregroundColor(.afTextPrimary).lineLimit(1)
                     Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12))
-                        .foregroundColor(.afTextTertiary)
+                    Image(systemName: "chevron.down").font(.system(size: 12)).foregroundColor(.afTextTertiary)
                 }
                 .padding(.horizontal, AFSpacing.md)
-                .frame(height: 52)
-                .background(Color.afSurface)
+                .frame(height: 50)
+                .background(Color.afSurface2)
                 .clipShape(RoundedRectangle(cornerRadius: AFRadius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: AFRadius.md)
-                        .stroke(Color.afBorder, lineWidth: 1)
-                )
+                .overlay(RoundedRectangle(cornerRadius: AFRadius.md).stroke(Color.afBorder, lineWidth: 1))
             }
+            .accessibilityLabel("\(title.capitalized): \(selection.wrappedValue[keyPath: label])")
         }
-    }
-}
-
-struct ShippingSection: View {
-    @Binding var includeShipping: Bool
-    @Binding var shippingPrice: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.sm) {
-            Toggle(isOn: $includeShipping) {
-                Text("Offer Shipping")
-                    .font(AFFont.headlineSmall)
-                    .foregroundColor(.afTextPrimary)
-            }
-            .tint(Color.afAccent)
-
-            if includeShipping {
-                AFTextField(placeholder: "Shipping price (USD)", text: $shippingPrice, icon: "shippingbox", keyboardType: .decimalPad)
-            }
-        }
-    }
-}
-
-struct CertificateToggle: View {
-    @Binding var isEnabled: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AFSpacing.xs) {
-            Toggle(isOn: $isEnabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text("Add Certificate of Authenticity")
-                            .font(AFFont.headlineSmall)
-                            .foregroundColor(.afTextPrimary)
-                        Text("$19")
-                            .font(AFFont.captionBold)
-                            .foregroundColor(.afAccent)
-                    }
-                    Text("Blockchain verified + physical NFC tag")
-                        .font(AFFont.caption)
-                        .foregroundColor(.afTextSecondary)
-                }
-            }
-            .tint(Color.afAccent)
-        }
-    }
-}
-
-// MARK: - Upload ViewModel
-
-@MainActor
-final class UploadViewModel: ObservableObject {
-    @Published var selectedImages: [UIImage] = []
-    @Published var photosPickerItems: [PhotosPickerItem] = []
-    @Published var title: String = ""
-    @Published var description: String = ""
-    @Published var medium: ArtworkMedium = .oilOnCanvas
-    @Published var style: ArtworkStyle = .abstract
-    @Published var width: String = ""
-    @Published var height: String = ""
-    @Published var unit: String = "cm"
-    @Published var year: String = String(Calendar.current.component(.year, from: Date()))
-    @Published var price: String = ""
-    @Published var includesShipping: Bool = true
-    @Published var shippingPrice: String = ""
-    @Published var addCertificate: Bool = false
-    @Published var pricingSuggestion: PricingSuggestion?
-    @Published var isLoadingAIPrice: Bool = false
-    @Published var isUploading: Bool = false
-    @Published var uploadSuccess: Bool = false
-    @Published var errorMessage: String?
-
-    private let artworkService = ArtworkService()
-    private let certService = CertificateService()
-
-    var canUpload: Bool {
-        !selectedImages.isEmpty && !title.isEmpty && !price.isEmpty && !width.isEmpty && !height.isEmpty
+        .frame(maxWidth: .infinity)
     }
 
-    func getAIPricingSuggestion() async {
-        guard !width.isEmpty, !height.isEmpty else { return }
-        isLoadingAIPrice = true
-        do {
-            let dims = ArtworkDimensions(width: Double(width) ?? 60, height: Double(height) ?? 80, unit: unit)
-            pricingSuggestion = try await artworkService.getAIPricingSuggestion(
-                medium: medium, style: style, dimensions: dims, year: Int(year) ?? 2024
-            )
-        } catch {
-            errorMessage = "Could not get AI suggestion. Please try again."
-        }
-        isLoadingAIPrice = false
+    private func positive(_ text: String) -> Double? {
+        guard let value = Double(text.trimmed.replacingOccurrences(of: ",", with: ".")), value.isFinite, value > 0, value < 100_000_000 else { return nil }
+        return value
     }
 
-    func upload() async {
-        isUploading = true
+    private func populate() {
+        guard let existing, title.isEmpty else { return }
+        title = existing.title
+        details = existing.details
+        medium = existing.medium
+        style = existing.style
+        status = existing.status
+        width = String(existing.dimensions.width)
+        height = String(existing.dimensions.height)
+        unit = existing.dimensions.unit
+        year = String(existing.year)
+        price = String(existing.price)
+        tags = existing.tags.joined(separator: ", ")
+    }
+
+    private func loadPhotos(_ items: [PhotosPickerItem]) async {
+        guard !items.isEmpty else { return }
+        isProcessing = true
         errorMessage = nil
-        do {
-            let imageDatas = selectedImages.compactMap { $0.jpegData(compressionQuality: 0.85) }
-            let artwork = Artwork(
-                id: UUID().uuidString, artistId: "current_user", artistName: "Me",
-                title: title, description: description, imageURLs: [],
-                price: Double(price) ?? 0, originalPrice: nil, status: .available,
-                medium: medium, style: style,
-                dimensions: ArtworkDimensions(width: Double(width) ?? 0, height: Double(height) ?? 0, unit: unit),
-                year: Int(year) ?? 2024, tags: [], colorPalette: [],
-                likesCount: 0, viewsCount: 0, isLiked: false,
-                hasCertificate: addCertificate, certificateHash: nil,
-                shippingOptions: [], createdAt: Date(), updatedAt: Date()
-            )
-            _ = try await artworkService.uploadArtwork(artwork, images: imageDatas)
-            uploadSuccess = true
-        } catch {
-            errorMessage = error.localizedDescription
+        defer { isProcessing = false }
+        var output: [ProcessedImage] = []
+        for item in items {
+            guard let data = try? await item.loadTransferable(type: Data.self),
+                  let image = await Task.detached(operation: { try? ImageProcessor.process(data) }).value else {
+                errorMessage = AppError.invalidImage.errorDescription
+                continue
+            }
+            output.append(image)
         }
-        isUploading = false
+        processed = output
+        previews = output.compactMap { UIImage(data: $0.thumbnail) }
     }
-}
 
-#Preview {
-    UploadView()
-        .environmentObject(AppState())
+    private func save() async {
+        guard let parsedPrice, let parsedWidth, let parsedHeight, let parsedYear else { return }
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+        let parsedTags = Array(tags.split(separator: ",").map { String($0).trimmed.lowercased() }.filter { !$0.isEmpty }.prefix(10))
+        let artwork = Artwork(
+            id: existing?.id ?? UUID().uuidString,
+            artistId: existing?.artistId ?? "",
+            artistName: existing?.artistName ?? "",
+            title: title.trimmed,
+            details: details.trimmed,
+            price: parsedPrice,
+            status: status,
+            medium: medium,
+            style: style,
+            dimensions: ArtworkDimensions(width: parsedWidth, height: parsedHeight, unit: unit),
+            year: parsedYear,
+            tags: parsedTags,
+            thumbnailURL: existing?.thumbnailURL,
+            createdAt: existing?.createdAt ?? Date()
+        )
+        do {
+            let saved = try await appState.backend.saveArtwork(artwork, images: processed.isEmpty ? nil : processed)
+            appState.refreshContent()
+            onFinished?(saved)
+            dismiss()
+        } catch {
+            errorMessage = AppState.message(for: error)
+        }
+    }
+
+    private func delete() async {
+        guard let existing else { return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            try await appState.backend.deleteArtwork(id: existing.id)
+            appState.refreshContent()
+            onFinished?(nil)
+            dismiss()
+        } catch {
+            errorMessage = AppState.message(for: error)
+        }
+    }
 }

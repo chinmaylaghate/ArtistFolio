@@ -11,7 +11,6 @@
 		B001000C /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000D /* AppState.swift */; };
 		B001000E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000F /* Models.swift */; };
 		B0010010 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010011 /* DesignTokens.swift */; };
-		B0010012 /* Services.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010013 /* Services.swift */; };
 		B0010014 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010015 /* SplashView.swift */; };
 		B0010016 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010017 /* OnboardingView.swift */; };
 		B0010018 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010019 /* AuthView.swift */; };
@@ -20,9 +19,21 @@
 		B001001E /* ArtworkDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001001F /* ArtworkDetailView.swift */; };
 		B0010020 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010021 /* SearchView.swift */; };
 		B0010022 /* UploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010023 /* UploadView.swift */; };
-		B0010024 /* AllScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010025 /* AllScreens.swift */; };
-		B0010043 /* FirstTimeSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010044 /* FirstTimeSetupView.swift */; };
 		B0010026 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B0010027 /* Assets.xcassets */; };
+		C0000100 /* DemoBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000101 /* DemoBackend.swift */; };
+		C0000102 /* ContentRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000103 /* ContentRules.swift */; };
+		C0000104 /* CloudKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000105 /* CloudKitService.swift */; };
+		C0000106 /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000107 /* ProfileService.swift */; };
+		C0000108 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000109 /* ArtworkService.swift */; };
+		C000010A /* LibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C000010B /* LibraryService.swift */; };
+		C000010C /* CloudImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C000010D /* CloudImage.swift */; };
+		C000010E /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C000010F /* ProfileEditorView.swift */; };
+		C0000110 /* StudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000111 /* StudioView.swift */; };
+		C0000112 /* SavedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000113 /* SavedView.swift */; };
+		C0000114 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000115 /* ProfileView.swift */; };
+		C0000116 /* SharedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000117 /* SharedComponents.swift */; };
+		C0000200 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C0000201 /* PrivacyInfo.xcprivacy */; };
+		C0000210 /* ArtistFolioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000211 /* ArtistFolioTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,7 +41,6 @@
 		B001000D /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		B001000F /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		B0010011 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
-		B0010013 /* Services.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services.swift; sourceTree = "<group>"; };
 		B0010015 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		B0010017 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		B0010019 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
@@ -39,15 +49,35 @@
 		B001001F /* ArtworkDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkDetailView.swift; sourceTree = "<group>"; };
 		B0010021 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		B0010023 /* UploadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadView.swift; sourceTree = "<group>"; };
-		B0010025 /* AllScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllScreens.swift; sourceTree = "<group>"; };
-		B0010044 /* FirstTimeSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstTimeSetupView.swift; sourceTree = "<group>"; };
 		B0010027 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B0010029 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B001002A /* ArtistFolio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ArtistFolio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0000101 /* DemoBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoBackend.swift; sourceTree = "<group>"; };
+		C0000103 /* ContentRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentRules.swift; sourceTree = "<group>"; };
+		C0000105 /* CloudKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitService.swift; sourceTree = "<group>"; };
+		C0000107 /* ProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileService.swift; sourceTree = "<group>"; };
+		C0000109 /* ArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkService.swift; sourceTree = "<group>"; };
+		C000010B /* LibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryService.swift; sourceTree = "<group>"; };
+		C000010D /* CloudImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudImage.swift; sourceTree = "<group>"; };
+		C000010F /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
+		C0000111 /* StudioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioView.swift; sourceTree = "<group>"; };
+		C0000113 /* SavedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedView.swift; sourceTree = "<group>"; };
+		C0000115 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		C0000117 /* SharedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedComponents.swift; sourceTree = "<group>"; };
+		C0000201 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		C0000211 /* ArtistFolioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistFolioTests.swift; sourceTree = "<group>"; };
+		C0000212 /* ArtistFolioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArtistFolioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B0010035 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0000214 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -61,6 +91,7 @@
 			isa = PBXGroup;
 			children = (
 				B001002C /* ArtistFolio */,
+				C0000213 /* ArtistFolioTests */,
 				B001002D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -74,6 +105,7 @@
 				B0010031 /* Components */,
 				B0010027 /* Assets.xcassets */,
 				B0010029 /* Info.plist */,
+				C0000201 /* PrivacyInfo.xcprivacy */,
 			);
 			path = ArtistFolio;
 			sourceTree = "<group>";
@@ -82,6 +114,7 @@
 			isa = PBXGroup;
 			children = (
 				B001002A /* ArtistFolio.app */,
+				C0000212 /* ArtistFolioTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -89,6 +122,7 @@
 		B001002E /* App */ = {
 			isa = PBXGroup;
 			children = (
+				C0000101 /* DemoBackend.swift */,
 				B001000B /* ArtistFolioApp.swift */,
 				B001000D /* AppState.swift */,
 			);
@@ -98,9 +132,14 @@
 		B001002F /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				C0000103 /* ContentRules.swift */,
+				C0000105 /* CloudKitService.swift */,
+				C0000107 /* ProfileService.swift */,
+				C0000109 /* ArtworkService.swift */,
+				C000010B /* LibraryService.swift */,
+				C000010D /* CloudImage.swift */,
 				B001000F /* Models.swift */,
 				B0010011 /* DesignTokens.swift */,
-				B0010013 /* Services.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -108,6 +147,10 @@
 		B0010030 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				C000010F /* ProfileEditorView.swift */,
+				C0000111 /* StudioView.swift */,
+				C0000113 /* SavedView.swift */,
+				C0000115 /* ProfileView.swift */,
 				B0010015 /* SplashView.swift */,
 				B0010017 /* OnboardingView.swift */,
 				B0010019 /* AuthView.swift */,
@@ -115,8 +158,6 @@
 				B001001F /* ArtworkDetailView.swift */,
 				B0010021 /* SearchView.swift */,
 				B0010023 /* UploadView.swift */,
-				B0010025 /* AllScreens.swift */,
-				B0010044 /* FirstTimeSetupView.swift */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -124,9 +165,18 @@
 		B0010031 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				C0000117 /* SharedComponents.swift */,
 				B001001B /* MainTabView.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		C0000213 /* ArtistFolioTests */ = {
+			isa = PBXGroup;
+			children = (
+				C0000211 /* ArtistFolioTests.swift */,
+			);
+			path = ArtistFolioTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -149,7 +199,43 @@
 			productReference = B001002A /* ArtistFolio.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C0000217 /* ArtistFolioTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0000218 /* Build configuration list for PBXNativeTarget "ArtistFolioTests" */;
+			buildPhases = (
+				C0000216 /* Sources */,
+				C0000214 /* Frameworks */,
+				C0000215 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C0000219 /* PBXTargetDependency */,
+			);
+			name = ArtistFolioTests;
+			productName = ArtistFolioTests;
+			productReference = C0000212 /* ArtistFolioTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		C000021A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B0010037 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B0010032;
+			remoteInfo = ArtistFolio;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		C0000219 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B0010032 /* ArtistFolio */;
+			targetProxy = C000021A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		B0010037 /* Project object */ = {
@@ -173,19 +259,12 @@
 				Base,
 			);
 			mainGroup = B001002B;
-			packageReferences = (
-				B0010039 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-				B001003A /* XCRemoteSwiftPackageReference "supabase-swift" */,
-				B001003B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
-				B001003C /* XCRemoteSwiftPackageReference "stripe-ios" */,
-				B001003D /* XCRemoteSwiftPackageReference "Kingfisher" */,
-				B001003E /* XCRemoteSwiftPackageReference "lottie-ios" */,
-			);
 			productRefGroup = B001002D /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				B0010032 /* ArtistFolio */,
+				C0000217 /* ArtistFolioTests */,
 			);
 		};
 /* End PBXProject section */
@@ -196,6 +275,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0010026 /* Assets.xcassets in Resources */,
+				C0000200 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0000215 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -207,10 +294,21 @@
 			buildActionMask = 2147483647;
 			files = (
 				B001000A /* ArtistFolioApp.swift in Sources */,
+				C0000100 /* DemoBackend.swift in Sources */,
+				C0000102 /* ContentRules.swift in Sources */,
+				C0000104 /* CloudKitService.swift in Sources */,
+				C0000106 /* ProfileService.swift in Sources */,
+				C0000108 /* ArtworkService.swift in Sources */,
+				C000010A /* LibraryService.swift in Sources */,
+				C000010C /* CloudImage.swift in Sources */,
+				C000010E /* ProfileEditorView.swift in Sources */,
+				C0000110 /* StudioView.swift in Sources */,
+				C0000112 /* SavedView.swift in Sources */,
+				C0000114 /* ProfileView.swift in Sources */,
+				C0000116 /* SharedComponents.swift in Sources */,
 				B001000C /* AppState.swift in Sources */,
 				B001000E /* Models.swift in Sources */,
 				B0010010 /* DesignTokens.swift in Sources */,
-				B0010012 /* Services.swift in Sources */,
 				B0010014 /* SplashView.swift in Sources */,
 				B0010016 /* OnboardingView.swift in Sources */,
 				B0010018 /* AuthView.swift in Sources */,
@@ -219,8 +317,14 @@
 				B001001E /* ArtworkDetailView.swift in Sources */,
 				B0010020 /* SearchView.swift in Sources */,
 				B0010022 /* UploadView.swift in Sources */,
-				B0010024 /* AllScreens.swift in Sources */,
-				B0010043 /* FirstTimeSetupView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0000216 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0000210 /* ArtistFolioTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -341,7 +445,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ArtistFolio/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ArtistFolio;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -369,7 +473,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ArtistFolio/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ArtistFolio;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -381,6 +485,40 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		C000021B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.artistfolio.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ArtistFolio.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ArtistFolio";
+			};
+			name = Debug;
+		};
+		C000021C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.artistfolio.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ArtistFolio.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ArtistFolio";
 			};
 			name = Release;
 		};
@@ -405,58 +543,17 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		C0000218 /* Build configuration list for PBXNativeTarget "ArtistFolioTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C000021B /* Debug */,
+				C000021C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		B0010039 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 10.25.0;
-			};
-		};
-		B001003A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/supabase-community/supabase-swift.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.5.0;
-			};
-		};
-		B001003B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/google/GoogleSignIn-iOS.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 7.1.0;
-			};
-		};
-		B001003C /* XCRemoteSwiftPackageReference "stripe-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/stripe/stripe-ios.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 23.27.0;
-			};
-		};
-		B001003D /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 7.12.0;
-			};
-		};
-		B001003E /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/airbnb/lottie-ios.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 4.4.3;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 	};
 	rootObject = B0010037 /* Project object */;
 }

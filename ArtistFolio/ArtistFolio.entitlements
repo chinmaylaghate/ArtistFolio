@@ -3,20 +3,14 @@
 <plist version="1.0">
 <dict>
 	<key>aps-environment</key>
-	<string>production</string>
-	<key>com.apple.developer.applesignin</key>
+	<string>development</string>
+	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>Default</string>
+		<string>iCloud.com.artistfolio.app</string>
 	</array>
-	<key>com.apple.developer.associated-domains</key>
+	<key>com.apple.developer.icloud-services</key>
 	<array>
-		<string>applinks:artistfolio.com</string>
-		<string>webcredentials:artistfolio.com</string>
-	</array>
-	<key>com.apple.developer.nfc.readersession.formats</key>
-	<array>
-		<string>TAG</string>
-		<string>NDEF</string>
+		<string>CloudKit</string>
 	</array>
 </dict>
 </plist>

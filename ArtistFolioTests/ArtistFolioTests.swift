@@ -1,132 +1,146 @@
-// MARK: - ArtistFolio Unit Tests
+import CloudKit
 import XCTest
 @testable import ArtistFolio
 
-final class ArtworkModelTests: XCTestCase {
-
-    func testArtworkDimensionsDisplayString() {
-        let dims2D = ArtworkDimensions(width: 60, height: 80, unit: "cm")
-        XCTAssertEqual(dims2D.displayString, "60 x 80 cm")
-
-        let dims3D = ArtworkDimensions(width: 60, height: 80, depth: 5, unit: "cm")
-        XCTAssertEqual(dims3D.displayString, "60 x 80 x 5 cm")
+final class RecordMappingTests: XCTestCase {
+    private func sampleArtwork() -> Artwork {
+        Artwork(id: "a1", artistId: "owner", title: "Blue Study", details: "Notes", price: 125.5, status: .reserved, medium: .watercolor, style: .minimalism, dimensions: ArtworkDimensions(width: 30, height: 40.5, unit: "in"), year: 2025, tags: ["ocean"])
     }
 
-    func testArtworkPreviewNotEmpty() {
-        XCTAssertFalse(Artwork.previews.isEmpty)
-        XCTAssertEqual(Artwork.previews.count, 3)
+    func testArtworkRoundTrip() throws {
+        let record = CKRecord(recordType: "Artwork", recordID: CKRecord.ID(recordName: "a1"))
+        ArtworkMapper.apply(sampleArtwork(), to: record)
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "owner", thumbnailURL: nil))
+        XCTAssertEqual(mapped.title, "Blue Study")
+        XCTAssertEqual(mapped.price, 125.5)
+        XCTAssertEqual(mapped.status, .reserved)
+        XCTAssertEqual(mapped.medium, .watercolor)
+        XCTAssertEqual(mapped.dimensions.displayString, "30 x 40.5 in")
+        XCTAssertEqual(mapped.artistId, "owner")
     }
 
-    func testArtworkPrimaryImageURL() {
-        var artwork = Artwork.previews[0]
-        artwork.imageURLs = ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]
-        XCTAssertEqual(artwork.primaryImageURL, "https://example.com/image1.jpg")
+    func testMalformedArtworkIsRejected() {
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(sampleArtwork(), to: record)
+        record["status"] = "hacked"
+        XCTAssertNil(ArtworkMapper.artwork(from: record, ownerID: "owner", thumbnailURL: nil))
+        record["status"] = "available"
+        record["price"] = -5.0
+        XCTAssertNil(ArtworkMapper.artwork(from: record, ownerID: "owner", thumbnailURL: nil))
     }
 
-    func testArtworkPrimaryImageURLEmpty() {
-        let artwork = Artwork.previews[0] // has empty imageURLs
-        XCTAssertEqual(artwork.primaryImageURL, "")
-    }
-
-    func testOrderStatusDisplayNames() {
-        XCTAssertEqual(OrderStatus.pending.displayName, "Pending")
-        XCTAssertEqual(OrderStatus.delivered.displayName, "Delivered")
-        XCTAssertEqual(OrderStatus.cancelled.displayName, "Cancelled")
-    }
-}
-
-final class AppStateTests: XCTestCase {
-
-    @MainActor
-    func testCartAddRemove() {
-        let state = AppState()
-        let artwork = Artwork.previews[0]
-
-        state.addToCart(artwork)
-        XCTAssertEqual(state.cartCount, 1)
-
-        // Adding same artwork again should not duplicate
-        state.addToCart(artwork)
-        XCTAssertEqual(state.cartCount, 1)
-
-        state.removeFromCart(id: state.cartItems[0].id)
-        XCTAssertEqual(state.cartCount, 0)
-    }
-
-    @MainActor
-    func testFavoritesToggle() {
-        let state = AppState()
-        let artworkId = "art_001"
-
-        XCTAssertFalse(state.isFavorite(artworkId: artworkId))
-
-        state.toggleFavorite(artworkId: artworkId)
-        XCTAssertTrue(state.isFavorite(artworkId: artworkId))
-
-        state.toggleFavorite(artworkId: artworkId)
-        XCTAssertFalse(state.isFavorite(artworkId: artworkId))
-    }
-
-    @MainActor
-    func testCartTotal() {
-        let state = AppState()
-        state.addToCart(Artwork.previews[0]) // $1200
-        state.addToCart(Artwork.previews[1]) // $850
-
-        XCTAssertEqual(state.cartTotal, 1200 + 850, accuracy: 0.01)
-    }
-
-    @MainActor
-    func testClearCart() {
-        let state = AppState()
-        Artwork.previews.forEach { state.addToCart($0) }
-        XCTAssertGreaterThan(state.cartCount, 0)
-
-        state.clearCart()
-        XCTAssertEqual(state.cartCount, 0)
+    func testProfileRoundTrip() throws {
+        let record = CKRecord(recordType: "Profile")
+        let profile = UserProfile(id: "owner", displayName: "Ana Ruiz", role: .artist, location: "Lima", acceptsCommissions: true)
+        ProfileMapper.apply(profile, to: record)
+        let mapped = try XCTUnwrap(ProfileMapper.profile(from: record, ownerID: "owner", avatarURL: nil))
+        XCTAssertEqual(mapped.displayName, "Ana Ruiz")
+        XCTAssertTrue(mapped.acceptsCommissions)
+        XCTAssertEqual(record["searchTokens"] as? [String], ["ana", "lima", "ruiz"])
     }
 }
 
-final class DeepLinkTests: XCTestCase {
-
-    func testArtworkDeepLink() {
-        let url = URL(string: "artistfolio://artwork/art_001")!
-        let link = DeepLink.from(url: url)
-        XCTAssertEqual(link, .artwork(id: "art_001"))
+final class OwnershipTests: XCTestCase {
+    func testCurrentUserPlaceholderResolvesToRealID() {
+        let creator = CKRecord.ID(recordName: CKCurrentUserDefaultName)
+        XCTAssertEqual(CloudKitService.ownerID(creator: creator, currentUserID: "me"), "me")
     }
 
-    func testArtistDeepLink() {
-        let url = URL(string: "artistfolio://artist/user_001")!
-        let link = DeepLink.from(url: url)
-        XCTAssertEqual(link, .artist(id: "user_001"))
+    func testOtherCreatorIsPreserved() {
+        let creator = CKRecord.ID(recordName: "someone")
+        XCTAssertEqual(CloudKitService.ownerID(creator: creator, currentUserID: "me"), "someone")
     }
 
-    func testUniversalLink() {
-        let url = URL(string: "https://artistfolio.com/artwork/art_001")!
-        let link = DeepLink.from(url: url)
-        XCTAssertEqual(link, .artwork(id: "art_001"))
+    func testMissingIdentityHasNoOwner() {
+        let creator = CKRecord.ID(recordName: CKCurrentUserDefaultName)
+        XCTAssertNil(CloudKitService.ownerID(creator: creator, currentUserID: nil))
+        XCTAssertNil(CloudKitService.ownerID(creator: nil, currentUserID: "me"))
     }
 
-    func testInvalidDeepLink() {
-        let url = URL(string: "artistfolio://unknown/path")!
-        let link = DeepLink.from(url: url)
-        XCTAssertNil(link)
+    func testCannotEditAnotherArtistsWork() async {
+        let backend = DemoBackend(mode: "collector")
+        let other = try! await backend.artworks(ownerID: "artist-sofia")[0]
+        do {
+            _ = try await backend.saveArtwork(other, images: nil)
+            XCTFail("Expected ownership failure")
+        } catch {
+            XCTAssertEqual((error as? AppError)?.errorDescription, AppError.notOwner.errorDescription)
+        }
+    }
+
+    func testAccountDeletionRemovesPublicRecords() async throws {
+        let backend = DemoBackend(mode: "artist")
+        try await backend.deleteAccount()
+        let works = try await backend.artworks(ownerID: "artist-sofia")
+        let profile = try await backend.profile(ownerID: "artist-sofia")
+        XCTAssertTrue(works.isEmpty)
+        XCTAssertNil(profile)
     }
 }
 
-final class ArtworkFiltersTests: XCTestCase {
-
-    func testDefaultFiltersHaveNoActiveState() {
-        let filters = ArtworkFilters()
-        XCTAssertTrue(filters.styles.isEmpty)
-        XCTAssertTrue(filters.mediums.isEmpty)
-        XCTAssertEqual(filters.minPrice, 0)
-        XCTAssertEqual(filters.maxPrice, 50000)
+final class SearchTokenTests: XCTestCase {
+    func testTokensAreNormalizedAndUnique() {
+        XCTAssertEqual(SearchTokens.make(from: ["Café Blue", "blue, OCEAN!"]), ["blue", "cafe", "ocean"])
     }
 
-    func testFiltersEquality() {
-        let f1 = ArtworkFilters()
-        let f2 = ArtworkFilters()
-        XCTAssertEqual(f1, f2)
+    func testSingleCharactersAreDropped() {
+        XCTAssertEqual(SearchTokens.words(in: "A big sky"), ["big", "sky"])
+    }
+
+    func testFilterPredicateIncludesRefinements() {
+        var filters = ArtworkFilters()
+        XCTAssertEqual(ArtworkMapper.predicate(for: filters), NSPredicate(value: true))
+        filters.text = "blue"
+        filters.styles = [.abstract]
+        filters.minPrice = 100
+        let format = ArtworkMapper.predicate(for: filters).predicateFormat
+        XCTAssertTrue(format.contains("searchTokens"))
+        XCTAssertTrue(format.contains("style"))
+        XCTAssertTrue(format.contains("price"))
+    }
+}
+
+final class ContentRuleTests: XCTestCase {
+    func testFilterBlocksTermsRegardlessOfCase() {
+        XCTAssertFalse(ContentFilter.isAllowed("Great PORN deal"))
+    }
+
+    func testFilterAllowsFineArtLanguage() {
+        XCTAssertTrue(ContentFilter.isAllowed("Classical nude study in Essex", "Scunthorpe landscape"))
+    }
+
+    func testContactLinksRejectUnsafeValues() {
+        XCTAssertNil(ContactLinks.websiteURL("javascript:alert(1)"))
+        XCTAssertNil(ContactLinks.websiteURL("http://example.com"))
+        XCTAssertNil(ContactLinks.websiteURL("https://user:pass@example.com"))
+        XCTAssertNil(ContactLinks.instagramURL("../evil"))
+        XCTAssertNil(ContactLinks.mailURL("a@b.com?bcc=x@y.com"))
+    }
+
+    func testContactLinksNormalizeValidValues() {
+        XCTAssertEqual(ContactLinks.websiteURL("example.com")?.absoluteString, "https://example.com")
+        XCTAssertEqual(ContactLinks.instagramURL("@ana.paints")?.absoluteString, "https://www.instagram.com/ana.paints/")
+        XCTAssertEqual(ContactLinks.mailURL("ana@example.com")?.absoluteString, "mailto:ana@example.com")
+    }
+}
+
+final class ImagePipelineTests: XCTestCase {
+    func testImagesAreResizedForUpload() throws {
+        let size = CGSize(width: 4000, height: 3000)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let source = UIGraphicsImageRenderer(size: size, format: format).jpegData(withCompressionQuality: 0.9) { context in
+            UIColor.systemBlue.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+        }
+        let output = try ImageProcessor.process(source)
+        let full = try XCTUnwrap(UIImage(data: output.full))
+        let thumb = try XCTUnwrap(UIImage(data: output.thumbnail))
+        XCTAssertEqual(max(full.size.width, full.size.height) * full.scale, 2048)
+        XCTAssertEqual(max(thumb.size.width, thumb.size.height) * thumb.scale, 600)
+    }
+
+    func testInvalidImageThrows() {
+        XCTAssertThrowsError(try ImageProcessor.process(Data([1, 2, 3])))
     }
 }

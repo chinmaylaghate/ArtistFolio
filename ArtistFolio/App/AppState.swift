@@ -1,163 +1,246 @@
-// MARK: - AppState & Environment
+import CloudKit
 import SwiftUI
-import Combine
 
 @MainActor
 final class AppState: ObservableObject {
+    enum Session: Equatable {
+        case loading
+        case guest
+        case needsProfile(userID: String)
+        case active(UserProfile)
+    }
 
-    // MARK: - Auth State
-    @Published var currentUser: AppUser?
-    @Published var isAuthenticated: Bool = false
-    @Published var isLoadingAuth: Bool = true
-
-    // MARK: - Navigation
+    @Published private(set) var session: Session = .loading
+    @Published private(set) var library = UserLibrary()
+    @Published private(set) var contentVersion = 0
     @Published var selectedTab: TabItem = .home
-    @Published var showSplash: Bool = true
-    @Published var showOnboarding: Bool = false
-    @Published var showFirstTimeSetup: Bool = false
+    @Published var showSplash = true
+    @Published var tabBarHiders = 0
+    @Published var showProfileSetup = false
+    @Published var showICloudPrompt = false
+    @Published var alertMessage: String?
+    @Published var hasEnteredApp: Bool {
+        didSet { UserDefaults.standard.set(hasEnteredApp, forKey: Self.enteredKey) }
+    }
 
-    // MARK: - Cart
-    @Published var cartItems: [CartItem] = []
-    var cartCount: Int { cartItems.count }
-    var cartTotal: Double { cartItems.reduce(0) { $0 + $1.artwork.price + ($1.selectedShipping?.price ?? 0) } }
+    let backend: ArtBackend
+    private static let enteredKey = "hasEnteredApp"
+    private var accountObserver: NSObjectProtocol?
 
-    // MARK: - Favorites
-    @Published var favoriteArtworkIds: Set<String> = []
+    init(backend: ArtBackend? = nil) {
+        self.backend = backend ?? BackendFactory.make()
+        hasEnteredApp = UserDefaults.standard.bool(forKey: Self.enteredKey)
+        accountObserver = NotificationCenter.default.addObserver(
+            forName: .CKAccountChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.reloadSession(resetIdentity: true) }
+        }
+        Task {
+            await reloadSession()
+            try? await Task.sleep(nanoseconds: 1_400_000_000)
+            withAnimation(.easeOut(duration: 0.4)) { showSplash = false }
+        }
+    }
 
-    // MARK: - Notifications
-    @Published var unreadNotificationCount: Int = 3
-    @Published var unreadMessageCount: Int = 2
+    deinit {
+        if let accountObserver { NotificationCenter.default.removeObserver(accountObserver) }
+    }
 
-    // MARK: - Services
-    let authService = AuthService()
-    let artworkService = ArtworkService()
-    let orderService = OrderService()
-    let chatService = ChatService()
-    let notificationService = NotificationService()
+    var profile: UserProfile? {
+        if case .active(let profile) = session { return profile }
+        return nil
+    }
 
-    private var cancellables = Set<AnyCancellable>()
+    var currentUserID: String? {
+        switch session {
+        case .active(let profile): return profile.id
+        case .needsProfile(let id): return id
+        default: return nil
+        }
+    }
 
-    // MARK: - Computed
-    var isArtist: Bool { currentUser?.role == .artist || currentUser?.role == .both }
-    var isCollector: Bool { currentUser?.role == .collector || currentUser?.role == .both }
+    var isArtist: Bool { profile?.role == .artist }
+    var hasICloud: Bool { currentUserID != nil }
 
     var availableTabs: [TabItem] {
-        if isArtist {
-            return [.home, .studio, .messages, .profile]
-        } else {
-            return [.home, .saved, .messages, .profile]
-        }
+        isArtist ? [.home, .studio, .profile] : [.home, .saved, .profile]
     }
 
-    init() {
-        setupAuthListener()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            withAnimation(.easeOut(duration: 0.5)) {
-                self.showSplash = false
+    func reloadSession(resetIdentity: Bool = false) async {
+        if resetIdentity { await backend.resetIdentity() }
+        do {
+            guard let id = try await backend.currentUserID() else {
+                session = .guest
+                library = UserLibrary()
+                normalizeTab()
+                return
             }
-        }
-    }
-
-    private func setupAuthListener() {
-        authService.$currentUser
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] user in
-                guard let self else { return }
-                let wasAuthenticated = self.isAuthenticated
-                self.currentUser = user
-                self.isAuthenticated = user != nil
-                self.isLoadingAuth = false
-                if user == nil {
-                    self.showOnboarding = true
-                    self.showFirstTimeSetup = false
-                } else if !wasAuthenticated {
-                    // Newly authenticated — show first-time setup
-                    self.showFirstTimeSetup = true
-                }
+            if let profile = try await backend.profile(ownerID: id) {
+                session = .active(profile)
+            } else {
+                session = .needsProfile(userID: id)
             }
-            .store(in: &cancellables)
-    }
-
-    func completeFirstTimeSetup() {
-        withAnimation(.easeInOut(duration: 0.4)) {
-            showFirstTimeSetup = false
+            library = try await backend.library()
+        } catch {
+            if session == .loading { session = .guest }
         }
+        normalizeTab()
     }
 
-    // MARK: - Cart Actions
-    func addToCart(_ artwork: Artwork) {
-        guard !cartItems.contains(where: { $0.artwork.id == artwork.id }) else { return }
-        let item = CartItem(id: UUID().uuidString, artwork: artwork, selectedShipping: artwork.shippingOptions.first, addedAt: Date())
-        cartItems.append(item)
+    func enterApp(createProfile: Bool) {
+        withAnimation(.easeInOut(duration: 0.3)) { hasEnteredApp = true }
+        if createProfile { beginProfileSetup() }
     }
 
-    func removeFromCart(id: String) {
-        cartItems.removeAll { $0.id == id }
-    }
-
-    func clearCart() {
-        cartItems.removeAll()
-    }
-
-    // MARK: - Favorites Actions
-    func toggleFavorite(artworkId: String) {
-        if favoriteArtworkIds.contains(artworkId) {
-            favoriteArtworkIds.remove(artworkId)
-        } else {
-            favoriteArtworkIds.insert(artworkId)
-        }
-    }
-
-    func isFavorite(artworkId: String) -> Bool {
-        favoriteArtworkIds.contains(artworkId)
-    }
-
-    // MARK: - Sign Out
-    func signOut() {
+    func beginProfileSetup() {
         Task {
-            await authService.signOut()
-            cartItems.removeAll()
-            favoriteArtworkIds.removeAll()
-            currentUser = nil
-            isAuthenticated = false
-            showOnboarding = true
-            selectedTab = .home
+            await reloadSession()
+            switch session {
+            case .needsProfile: showProfileSetup = true
+            case .active: break
+            default: showICloudPrompt = true
+            }
         }
+    }
+
+    func updateProfile(_ updated: UserProfile) {
+        session = .active(updated)
+        normalizeTab()
+        refreshContent()
+    }
+
+    func refreshContent() {
+        contentVersion += 1
+    }
+
+    func isVisible(_ artwork: Artwork) -> Bool {
+        !library.blocked.contains(artwork.artistId)
+    }
+
+    func isSaved(_ artworkID: String) -> Bool { library.saved.contains(artworkID) }
+    func isFollowing(_ artistID: String) -> Bool { library.following.contains(artistID) }
+    func isBlocked(_ artistID: String) -> Bool { library.blocked.contains(artistID) }
+
+    func toggleSaved(_ artworkID: String) {
+        toggle(.saved, id: artworkID, included: !isSaved(artworkID))
+    }
+
+    func toggleFollowing(_ artistID: String) {
+        toggle(.following, id: artistID, included: !isFollowing(artistID))
+    }
+
+    func setBlocked(_ artistID: String, blocked: Bool) {
+        toggle(.blocked, id: artistID, included: blocked)
+        if blocked, isFollowing(artistID) {
+            toggle(.following, id: artistID, included: false)
+        }
+    }
+
+    func report(target: ReportTarget, targetID: String, reason: ReportReason, note: String) async -> Bool {
+        guard hasICloud else {
+            showICloudPrompt = true
+            return false
+        }
+        do {
+            try await backend.submitReport(target: target, targetID: targetID, reason: reason, note: note)
+            return true
+        } catch {
+            alertMessage = Self.message(for: error)
+            return false
+        }
+    }
+
+    func deleteAccount() async -> Bool {
+        do {
+            try await backend.deleteAccount()
+            library = UserLibrary()
+            selectedTab = .home
+            await reloadSession(resetIdentity: true)
+            refreshContent()
+            return true
+        } catch {
+            alertMessage = "Your account was not fully deleted. \(Self.message(for: error)) Please try again."
+            return false
+        }
+    }
+
+    static func message(for error: Error) -> String {
+        if let error = error as? AppError { return error.errorDescription ?? "Something went wrong." }
+        if let error = error as? CKError {
+            switch error.code {
+            case .networkUnavailable, .networkFailure: return "You appear to be offline. Check your connection and try again."
+            case .notAuthenticated: return "Sign in to iCloud in Settings to continue."
+            case .quotaExceeded: return "Your iCloud storage is full."
+            case .requestRateLimited, .serviceUnavailable, .zoneBusy: return "iCloud is busy. Try again shortly."
+            case .permissionFailure: return "You don't have permission to do that."
+            default: break
+            }
+        }
+        return "Something went wrong. Please try again."
+    }
+
+    private func toggle(_ kind: LibraryKind, id: String, included: Bool) {
+        guard hasICloud else {
+            showICloudPrompt = true
+            return
+        }
+        apply(kind, id: id, included: included)
+        Task {
+            do {
+                try await backend.setLibrary(kind, id: id, included: included)
+            } catch {
+                apply(kind, id: id, included: !included)
+                alertMessage = Self.message(for: error)
+            }
+        }
+    }
+
+    private func apply(_ kind: LibraryKind, id: String, included: Bool) {
+        switch kind {
+        case .saved: library.saved.set(id, included)
+        case .following: library.following.set(id, included)
+        case .blocked: library.blocked.set(id, included)
+        }
+    }
+
+    private func normalizeTab() {
+        if !availableTabs.contains(selectedTab) { selectedTab = .home }
     }
 }
 
-// MARK: - Tab Items
+private extension Set where Element == String {
+    mutating func set(_ value: String, _ included: Bool) {
+        if included { insert(value) } else { remove(value) }
+    }
+}
+
+enum BackendFactory {
+    static func make() -> ArtBackend {
+        #if DEBUG
+        let environment = ProcessInfo.processInfo.environment
+        if environment["XCTestConfigurationFilePath"] != nil {
+            return DemoBackend(mode: "guest")
+        }
+        if let mode = UserDefaults.standard.string(forKey: "demo") {
+            return DemoBackend(mode: mode)
+        }
+        #endif
+        return CloudKitService()
+    }
+}
 
 enum TabItem: String, CaseIterable {
-    case home, studio, saved, messages, profile
+    case home, studio, saved, profile
 
     var icon: String {
         switch self {
-        case .home:     return "house"
-        case .studio:   return "paintpalette"
-        case .saved:    return "heart"
-        case .messages: return "envelope"
-        case .profile:  return "person"
+        case .home: return "house"
+        case .studio: return "paintpalette"
+        case .saved: return "heart"
+        case .profile: return "person"
         }
     }
 
-    var selectedIcon: String {
-        switch self {
-        case .home:     return "house.fill"
-        case .studio:   return "paintpalette.fill"
-        case .saved:    return "heart.fill"
-        case .messages: return "envelope.fill"
-        case .profile:  return "person.fill"
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .home:     return "Home"
-        case .studio:   return "Studio"
-        case .saved:    return "Saved"
-        case .messages: return "Messages"
-        case .profile:  return "Profile"
-        }
-    }
+    var selectedIcon: String { icon + ".fill" }
+    var label: String { rawValue.capitalized }
 }

@@ -1,0 +1,111 @@
+DEFINE SCHEMA
+
+    RECORD TYPE Users (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        roles           LIST<INT64>,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Profile (
+        "___createTime"    TIMESTAMP QUERYABLE SORTABLE,
+        "___createdBy"     REFERENCE QUERYABLE,
+        "___etag"          STRING,
+        "___modTime"       TIMESTAMP,
+        "___modifiedBy"    REFERENCE,
+        "___recordID"      REFERENCE QUERYABLE,
+        displayName        STRING,
+        bio                STRING,
+        role               STRING QUERYABLE,
+        location           STRING,
+        website            STRING,
+        instagramHandle    STRING,
+        contactEmail       STRING,
+        acceptsCommissions INT64,
+        avatar             ASSET,
+        searchTokens       LIST<STRING> QUERYABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Artwork (
+        "___createTime" TIMESTAMP QUERYABLE SORTABLE,
+        "___createdBy"  REFERENCE QUERYABLE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        title           STRING,
+        details         STRING,
+        price           DOUBLE QUERYABLE SORTABLE,
+        status          STRING QUERYABLE,
+        medium          STRING QUERYABLE,
+        style           STRING QUERYABLE,
+        width           DOUBLE,
+        height          DOUBLE,
+        unit            STRING,
+        year            INT64,
+        tags            LIST<STRING>,
+        searchTokens    LIST<STRING> QUERYABLE,
+        thumbnail       ASSET,
+        images          LIST<ASSET>,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Report (
+        "___createTime" TIMESTAMP QUERYABLE SORTABLE,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        targetType      STRING,
+        targetID        STRING,
+        reason          STRING,
+        note            STRING,
+        GRANT CREATE TO "_icloud"
+    );
+
+    RECORD TYPE SavedArtwork (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        targetID        STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud"
+    );
+
+    RECORD TYPE FollowedArtist (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        targetID        STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud"
+    );
+
+    RECORD TYPE BlockedArtist (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        targetID        STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud"
+    );
