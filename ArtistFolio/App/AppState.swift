@@ -7,6 +7,7 @@ final class AppState: ObservableObject {
         case loading
         case guest
         case needsProfile(userID: String)
+        case profileUnavailable(userID: String)
         case active(UserProfile)
     }
 
@@ -26,6 +27,7 @@ final class AppState: ObservableObject {
     let backend: ArtBackend
     private static let enteredKey = "hasEnteredApp"
     private var accountObserver: NSObjectProtocol?
+    private var accountGeneration = 0
 
     init(backend: ArtBackend? = nil) {
         self.backend = backend ?? BackendFactory.make()
@@ -54,9 +56,14 @@ final class AppState: ObservableObject {
     var currentUserID: String? {
         switch session {
         case .active(let profile): return profile.id
-        case .needsProfile(let id): return id
+        case .needsProfile(let id), .profileUnavailable(let id): return id
         default: return nil
         }
+    }
+
+    var isProfileUnavailable: Bool {
+        if case .profileUnavailable = session { return true }
+        return false
     }
 
     var isArtist: Bool { profile?.role == .artist }
@@ -67,23 +74,46 @@ final class AppState: ObservableObject {
     }
 
     func reloadSession(resetIdentity: Bool = false) async {
-        if resetIdentity { await backend.resetIdentity() }
-        do {
-            guard let id = try await backend.currentUserID() else {
-                session = .guest
-                library = UserLibrary()
-                normalizeTab()
-                return
-            }
-            if let profile = try await backend.profile(ownerID: id) {
-                session = .active(profile)
-            } else {
-                session = .needsProfile(userID: id)
-            }
-            library = try await backend.library()
-        } catch {
-            if session == .loading { session = .guest }
+        if resetIdentity {
+            accountGeneration += 1
+            session = .loading
+            library = UserLibrary()
+            normalizeTab()
+            await backend.resetIdentity()
         }
+        // A reload that began under a previous iCloud account must not publish its results.
+        let generation = accountGeneration
+
+        let userID: String?
+        do {
+            userID = try await backend.currentUserID()
+        } catch {
+            guard generation == accountGeneration else { return }
+            if session == .loading { session = .guest }
+            normalizeTab()
+            return
+        }
+        guard generation == accountGeneration else { return }
+        guard let userID else {
+            session = .guest
+            library = UserLibrary()
+            normalizeTab()
+            return
+        }
+        if currentUserID != userID { library = UserLibrary() }
+
+        do {
+            let loaded = try await backend.profile(ownerID: userID)
+            guard generation == accountGeneration else { return }
+            session = loaded.map(Session.active) ?? .needsProfile(userID: userID)
+        } catch {
+            guard generation == accountGeneration else { return }
+            if currentUserID != userID { session = .profileUnavailable(userID: userID) }
+        }
+
+        let loadedLibrary = try? await backend.library()
+        guard generation == accountGeneration else { return }
+        if let loadedLibrary { library = loadedLibrary }
         normalizeTab()
     }
 
@@ -92,13 +122,48 @@ final class AppState: ObservableObject {
         if createProfile { beginProfileSetup() }
     }
 
+    enum ICloudAccess { case entered, needsProfile, noICloud, unavailable }
+
+    func continueWithICloud() async -> ICloudAccess {
+        await reloadSession()
+        switch session {
+        case .active:
+            enterApp(createProfile: false)
+            return .entered
+        case .needsProfile:
+            return .needsProfile
+        case .profileUnavailable:
+            return .unavailable
+        case .guest, .loading:
+            showICloudPrompt = true
+            return .noICloud
+        }
+    }
+
+    func createAccount(displayName: String, role: UserRole, contactEmail: String) async throws {
+        switch await continueWithICloud() {
+        case .entered, .noICloud:
+            return
+        case .unavailable:
+            throw AppError.accountUnavailable
+        case .needsProfile:
+            guard let userID = currentUserID else { throw AppError.iCloudRequired }
+            var profile = UserProfile(id: userID, displayName: displayName, role: role)
+            profile.contactEmail = role == .artist ? contactEmail : ""
+            let saved = try await backend.saveProfile(profile, avatar: nil)
+            enterApp(createProfile: false)
+            updateProfile(saved, isFirstTime: true)
+        }
+    }
+
     func beginProfileSetup() {
         Task {
             await reloadSession()
             switch session {
             case .needsProfile: showProfileSetup = true
-            case .active: break
-            default: showICloudPrompt = true
+            case .active, .loading: break
+            case .profileUnavailable: alertMessage = "We couldn't load your profile. Check your connection and try again."
+            case .guest: showICloudPrompt = true
             }
         }
     }

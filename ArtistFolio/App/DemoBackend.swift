@@ -8,6 +8,9 @@ final class DemoBackend: ArtBackend {
     private var items: [Artwork] = []
     private var state = UserLibrary()
     private(set) var reports: [(ReportTarget, String, ReportReason)] = []
+    var failsIdentityLoads = false
+    var failsProfileLoads = false
+    var failsArtworkLoads = false
 
     init(mode: String) {
         let sofia = UserProfile(id: "artist-sofia", displayName: "Sofia Martinez", bio: "Abstract painter working with oil and gold leaf.", role: .artist, location: "Barcelona, Spain", website: "example.com", instagramHandle: "sofia.paints", contactEmail: "sofia@example.com", acceptsCommissions: true)
@@ -16,6 +19,7 @@ final class DemoBackend: ArtBackend {
         items = [
             Self.art("art-1", sofia, "Crimson Dreams", 1200, .oilOnCanvas, .abstract, ["#C0392B", "#F39C12"]),
             Self.art("art-2", james, "Ocean Silence", 850, .watercolor, .minimalism, ["#2980B9", "#D6EAF8"]),
+            Self.art("art-5", james, "Harbor at Dusk", 1650, .acrylic, .landscape, ["#1F3A5F", "#F2A65A"], size: ArtworkDimensions(width: 120, height: 60, unit: "cm")),
             Self.art("art-3", sofia, "Golden Hour", 2400, .mixedMedia, .contemporary, ["#F7DC6F", "#8E44AD"]),
             Self.art("art-4", james, "Tidal Study", 420, .watercolor, .landscape, ["#1ABC9C", "#154360"], status: .sold)
         ]
@@ -31,12 +35,12 @@ final class DemoBackend: ArtBackend {
         }
     }
 
-    private static func art(_ id: String, _ artist: UserProfile, _ title: String, _ price: Double, _ medium: ArtworkMedium, _ style: ArtworkStyle, _ colors: [String], status: ArtworkStatus = .available) -> Artwork {
-        Artwork(id: id, artistId: artist.id, artistName: artist.displayName, title: title, details: "An original work exploring color, light, and texture.", price: price, status: status, medium: medium, style: style, dimensions: ArtworkDimensions(width: 60, height: 80, unit: "cm"), year: 2026, tags: [style.rawValue.lowercased()], thumbnailURL: image(key: id, colors: colors))
+    private static func art(_ id: String, _ artist: UserProfile, _ title: String, _ price: Double, _ medium: ArtworkMedium, _ style: ArtworkStyle, _ colors: [String], status: ArtworkStatus = .available, size: ArtworkDimensions = ArtworkDimensions(width: 60, height: 80, unit: "cm")) -> Artwork {
+        Artwork(id: id, artistId: artist.id, artistName: artist.displayName, title: title, details: "An original work exploring color, light, and texture.", price: price, status: status, medium: medium, style: style, dimensions: size, year: 2026, tags: [style.rawValue.lowercased()], thumbnailURL: image(key: id, colors: colors, aspect: size.aspectRatio))
     }
 
-    private static func image(key: String, colors: [String]) -> URL? {
-        let size = CGSize(width: 600, height: 760)
+    private static func image(key: String, colors: [String], aspect: CGFloat) -> URL? {
+        let size = aspect >= 1 ? CGSize(width: 900, height: 900 / aspect) : CGSize(width: 760 * aspect, height: 760)
         let rendered = UIGraphicsImageRenderer(size: size).image { context in
             let cgColors = colors.map { UIColor(Color(hex: $0)).cgColor } as CFArray
             if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cgColors, locations: nil) {
@@ -45,12 +49,25 @@ final class DemoBackend: ArtBackend {
         }
         guard let data = rendered.jpegData(compressionQuality: 0.8), let temp = try? ImageStore.temporaryFile(data) else { return nil }
         defer { try? FileManager.default.removeItem(at: temp) }
-        return ImageStore.cacheFile(temp, key: "demo-\(key)")
+        return ImageStore.cacheFile(temp, key: "demo-v2-\(key)")
     }
 
-    func currentUserID() async throws -> String? { userID }
+    func currentUserID() async throws -> String? {
+        if failsIdentityLoads { throw CKError(.networkFailure) }
+        return userID
+    }
+
     func resetIdentity() async {}
-    func profile(ownerID: String) async throws -> UserProfile? { profiles[ownerID] }
+
+    func profile(ownerID: String) async throws -> UserProfile? {
+        if failsProfileLoads { throw CKError(.networkFailure) }
+        return profiles[ownerID]
+    }
+
+    func switchAccount(to id: String?) {
+        userID = id
+        state = UserLibrary()
+    }
 
     func saveProfile(_ profile: UserProfile, avatar: Data?) async throws -> UserProfile {
         guard let userID else { throw AppError.iCloudRequired }
@@ -70,6 +87,7 @@ final class DemoBackend: ArtBackend {
     }
 
     func artworks(filters: ArtworkFilters, cursor: CKQueryOperation.Cursor?) async throws -> ArtworkPage {
+        if failsArtworkLoads { throw CKError(.networkFailure) }
         let words = SearchTokens.words(in: filters.text)
         var output = items.filter { art in
             let tokens = SearchTokens.make(from: [art.title, art.medium.rawValue, art.style.rawValue] + art.tags)

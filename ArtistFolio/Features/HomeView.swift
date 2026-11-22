@@ -135,6 +135,7 @@ struct HomeView: View {
                                 FilterChip(label: medium.rawValue, isSelected: selectedMedium == medium) { selectedMedium = medium }
                             }
                         }
+                        .afGlassGroup()
                         .padding(.horizontal, AFSpacing.md)
                     }
                     content.padding(.horizontal, AFSpacing.md)
@@ -156,7 +157,7 @@ struct HomeView: View {
     }
 
     private var heroArtwork: Artwork? {
-        model.discover.first { $0.style == StyleCollectionLink.featured.style && appState.isVisible($0) }
+        model.discover.first { ArtCollection.featured.matches($0) && appState.isVisible($0) }
     }
 
     private var suggestedArtists: [UserProfile] {
@@ -197,21 +198,13 @@ struct HomeView: View {
     }
 }
 
-struct StyleCollectionLink: Hashable {
-    let style: ArtworkStyle
-    let title: String
-    let subtitle: String
-
-    static let featured = StyleCollectionLink(style: .abstract, title: "Abstract Masters", subtitle: "Bold forms & pure emotion")
-}
-
 struct ArtistDirectoryLink: Hashable {
     let artists: [UserProfile]
 }
 
 private struct FeaturedCollectionCard: View {
     let artwork: Artwork
-    private let link = StyleCollectionLink.featured
+    private let link = ArtCollection.featured
 
     var body: some View {
         NavigationLink(value: link) {
@@ -268,7 +261,7 @@ private struct FollowPromptCard: View {
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .frame(width: 28, height: 28)
-                        .background(Color(uiColor: .tertiarySystemFill), in: Circle())
+                        .afGlass(in: Circle(), interactive: true)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -308,7 +301,7 @@ private struct FeaturedArtistsSection: View {
                             VStack(spacing: AFSpacing.xxs) {
                                 AvatarCircle(name: artist.displayName, url: artist.avatarURL, size: 68)
                                     .padding(3)
-                                    .overlay(Circle().strokeBorder(LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 2.5))
+                                    .overlay(Circle().strokeBorder(Color.afPrimary, lineWidth: 2))
                                     .padding(.bottom, 2)
                                 Text(artist.displayName.components(separatedBy: " ").first ?? artist.displayName)
                                     .font(.subheadline)
@@ -339,7 +332,7 @@ private struct JustListedSection: View {
             Label {
                 Text("Just Listed").font(.title2.bold())
             } icon: {
-                Image(systemName: "clock").foregroundStyle(.orange)
+                Image(systemName: "clock").foregroundStyle(.tint)
             }
             .padding(.horizontal, AFSpacing.md)
 
@@ -360,6 +353,7 @@ private struct JustListedSection: View {
                                     .padding(AFSpacing.xs)
                                 }
                                 .clipShape(RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+                                .contentShape(RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
                         }
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
@@ -375,19 +369,15 @@ private struct JustListedSection: View {
     }
 }
 
-struct StyleCollectionView: View {
+struct ArtCollectionView: View {
     @EnvironmentObject var appState: AppState
-    let link: StyleCollectionLink
+    let link: ArtCollection
     @State private var artworks: [Artwork] = []
     @State private var cursor: CKQueryOperation.Cursor?
     @State private var isLoading = true
     @State private var errorMessage: String?
 
-    private var filters: ArtworkFilters {
-        var filters = ArtworkFilters()
-        filters.styles = [link.style]
-        return filters
-    }
+    private var filters: ArtworkFilters { link.filters }
 
     var body: some View {
         Group {
@@ -465,7 +455,7 @@ struct ArtistDirectoryView: View {
                             Button(appState.isFollowing(artist.id) ? "Following" : "Follow") {
                                 appState.toggleFollowing(artist.id)
                             }
-                            .buttonStyle(.bordered)
+                            .afGlassButton()
                             .controlSize(.small)
                             .sensoryFeedback(.selection, trigger: appState.isFollowing(artist.id))
                         }

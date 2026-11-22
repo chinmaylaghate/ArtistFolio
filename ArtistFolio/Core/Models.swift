@@ -66,6 +66,18 @@ struct ArtworkDimensions: Hashable {
     var height: Double
     var unit: String
 
+    var aspectRatio: CGFloat {
+        guard width > 0, height > 0 else { return 1 }
+        return CGFloat(width / height)
+    }
+
+    var isPortrait: Bool { aspectRatio < 0.9 }
+
+    var sizeInCentimeters: CGSize {
+        let factor = unit == "in" ? 2.54 : 1
+        return CGSize(width: width * factor, height: height * factor)
+    }
+
     var displayString: String {
         "\(Self.format(width)) x \(Self.format(height)) \(unit)"
     }
@@ -96,7 +108,7 @@ struct Artwork: Identifiable, Hashable {
     }
 }
 
-struct ArtworkFilters: Equatable {
+struct ArtworkFilters: Hashable {
     var text: String = ""
     var styles: [ArtworkStyle] = []
     var mediums: [ArtworkMedium] = []
@@ -116,6 +128,60 @@ struct ArtworkFilters: Equatable {
         case priceDesc = "Price: High to Low"
         var id: String { rawValue }
     }
+}
+
+struct ArtCollection: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let filters: ArtworkFilters
+
+    private init(_ id: String, _ title: String, _ subtitle: String, styles: [ArtworkStyle] = [], mediums: [ArtworkMedium] = [], maxPrice: Double? = nil) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        var filters = ArtworkFilters()
+        filters.styles = styles
+        filters.mediums = mediums
+        if let maxPrice { filters.maxPrice = maxPrice }
+        self.filters = filters
+    }
+
+    func matches(_ artwork: Artwork) -> Bool {
+        (filters.styles.isEmpty || filters.styles.contains(artwork.style))
+            && (filters.mediums.isEmpty || filters.mediums.contains(artwork.medium))
+            && artwork.price >= filters.minPrice
+            && artwork.price <= filters.maxPrice
+    }
+
+    static let featured = ArtCollection("abstract", "Abstract Masters", "Bold forms & pure emotion", styles: [.abstract])
+    static let upfrontCount = 8
+
+    static let all: [ArtCollection] = [
+        featured,
+        ArtCollection("under-1000", "Under $1,000", "Originals at an accessible price", maxPrice: 1000),
+        ArtCollection("recent", "Recently Added", "The newest work on Artist Folio"),
+        ArtCollection("portrait", "Portrait Gallery", "Faces, figures & character", styles: [.portrait]),
+        ArtCollection("landscape", "Nature & Landscape", "Scenes from the natural world", styles: [.landscape]),
+        ArtCollection("contemporary", "Contemporary", "Art of the moment", styles: [.contemporary]),
+        ArtCollection("oil", "Oil Paintings", "Rich color & classic technique", mediums: [.oilOnCanvas]),
+        ArtCollection("watercolor", "Watercolors", "Light, fluid & luminous", mediums: [.watercolor]),
+        ArtCollection("under-500", "Under $500", "Great first pieces to collect", maxPrice: 500),
+        ArtCollection("minimalism", "Minimalism", "Less, but better", styles: [.minimalism]),
+        ArtCollection("realism", "Realism", "Life, closely observed", styles: [.realism]),
+        ArtCollection("impressionism", "Impressionism", "Light in fleeting moments", styles: [.impressionism]),
+        ArtCollection("expressionism", "Expressionism", "Feeling over form", styles: [.expressionism]),
+        ArtCollection("surrealism", "Surrealism", "Dreams made visible", styles: [.surrealism]),
+        ArtCollection("still-life", "Still Life", "Quiet, everyday objects", styles: [.stillLife]),
+        ArtCollection("acrylic", "Acrylics", "Bold, vivid color", mediums: [.acrylic]),
+        ArtCollection("mixed-media", "Mixed Media", "Materials in conversation", mediums: [.mixedMedia]),
+        ArtCollection("digital", "Digital Art", "Made on screen", mediums: [.digital]),
+        ArtCollection("drawing", "Drawings", "The power of line", mediums: [.drawing]),
+        ArtCollection("pastel", "Pastels", "Soft, rich texture", mediums: [.pastel]),
+        ArtCollection("sculpture", "Sculpture", "Art in three dimensions", mediums: [.sculpture]),
+        ArtCollection("photography", "Photography", "Moments in frame", mediums: [.photography]),
+        ArtCollection("printmaking", "Prints", "Crafted impressions", mediums: [.printmaking])
+    ]
 }
 
 struct ArtworkPage {
@@ -165,6 +231,7 @@ enum AppError: LocalizedError {
     case objectionableContent
     case invalidImage
     case notOwner
+    case accountUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -172,6 +239,7 @@ enum AppError: LocalizedError {
         case .objectionableContent: return "Please remove language that breaks the community guidelines."
         case .invalidImage: return "That photo could not be processed. Try another one."
         case .notOwner: return "You can only change your own work."
+        case .accountUnavailable: return "We couldn't load your account. Check your connection and try again."
         }
     }
 }

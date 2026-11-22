@@ -1,51 +1,176 @@
 import SwiftUI
 
+enum AuthRoute: Hashable {
+    case createAccount, signIn
+}
+
 struct OnboardingRootView: View {
-    @EnvironmentObject var appState: AppState
+    @State private var showLanding = false
+    @State private var path: [AuthRoute] = []
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AFSpacing.xxl) {
-                VStack(spacing: AFSpacing.sm) {
-                    Image(systemName: "photo.artframe")
-                        .font(.largeTitle)
-                        .imageScale(.large)
-                        .foregroundStyle(.tint)
-                        .accessibilityHidden(true)
-                    Text("Welcome to Artist Folio")
-                        .font(.largeTitle.bold())
-                        .multilineTextAlignment(.center)
+        NavigationStack(path: $path) {
+            Group {
+                if showLanding {
+                    LandingView(path: $path).transition(.opacity)
+                } else {
+                    OnboardingPagesView { withAnimation(.smooth) { showLanding = true } }
+                        .transition(.opacity)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.top, AFSpacing.xxl)
+            }
+            .navigationDestination(for: AuthRoute.self) { route in
+                switch route {
+                case .createAccount: CreateAccountView(path: $path)
+                case .signIn: SignInView(path: $path)
+                }
+            }
+        }
+    }
+}
 
-                VStack(alignment: .leading, spacing: AFSpacing.xl) {
-                    FeatureRow(icon: "paintbrush.pointed", title: "Your Art, Your Gallery", detail: "Build a portfolio and reach collectors worldwide.")
-                    FeatureRow(icon: "safari", title: "Discover Original Work", detail: "Browse by style and medium, and save pieces you love.")
-                    FeatureRow(icon: "person.2", title: "Connect Directly", detail: "Reach artists by email, Instagram, or their website.")
+private struct OnboardingPage: Identifiable {
+    let id: Int
+    let image: String
+    let title: String
+    let detail: String
+}
+
+private struct OnboardingPagesView: View {
+    let onFinish: () -> Void
+    @State private var page = 0
+
+    private let pages = [
+        OnboardingPage(id: 0, image: "OnboardingArtist", title: "Your Art, Your Gallery", detail: "Artist Folio is a home for original art. Build your portfolio and reach collectors worldwide."),
+        OnboardingPage(id: 1, image: "OnboardingGallery", title: "No Middlemen, No Limits", detail: "Connect directly with collectors anywhere in the world. No galleries or agents required."),
+        OnboardingPage(id: 2, image: "OnboardingApp", title: "Safe, Simple, Beautiful", detail: "Report and block tools, private saved art, and a beautiful experience for art lovers on both sides.")
+    ]
+
+    private var isLast: Bool { page == pages.count - 1 }
+
+    var body: some View {
+        VStack(spacing: AFSpacing.md) {
+            TabView(selection: $page.animation()) {
+                ForEach(pages) { item in
+                    ScrollView {
+                        VStack(spacing: AFSpacing.lg) {
+                            Image(item.image)
+                                .resizable()
+                                .scaledToFit()
+                                .grayscale(1)
+                                .frame(maxHeight: 320)
+                                .background(Color.white, in: RoundedRectangle(cornerRadius: AFRadius.lg, style: .continuous))
+                                .accessibilityHidden(true)
+                            Text(item.title)
+                                .font(.title.bold())
+                                .multilineTextAlignment(.center)
+                            Text(item.detail)
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, AFSpacing.xl)
+                        .padding(.top, AFSpacing.xxl)
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
+                    .tag(item.id)
                 }
-                .padding(.horizontal, AFSpacing.xs)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+
+            HStack(spacing: 6) {
+                ForEach(pages) { item in
+                    Capsule()
+                        .fill(item.id == page ? Color.afPrimary : Color(uiColor: .systemGray4))
+                        .frame(width: item.id == page ? 24 : 6, height: 6)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Page \(page + 1) of \(pages.count)")
+
+            VStack(spacing: AFSpacing.xxs) {
+                Button {
+                    if isLast { onFinish() } else { withAnimation { page += 1 } }
+                } label: {
+                    Text(isLast ? "Get Started" : "Continue").frame(maxWidth: .infinity)
+                }
+                .primaryAction()
+
+                Button("Skip", action: onFinish)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(minHeight: 44)
+                    .opacity(isLast ? 0 : 1)
+                    .disabled(isLast)
             }
             .padding(.horizontal, AFSpacing.xl)
         }
-        .safeAreaInset(edge: .bottom) {
+        .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
+private struct LandingView: View {
+    @EnvironmentObject var appState: AppState
+    @Binding var path: [AuthRoute]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AFSpacing.md) {
+            HStack {
+                Spacer()
+                BrandLogo(height: 104)
+            }
+            .padding(.top, AFSpacing.xxl)
+
+            Spacer()
+
+            VStack(alignment: .leading, spacing: AFSpacing.xs) {
+                Text("Where art\nfinds its home.").font(.title.bold())
+                Text("Discover original paintings and connect directly with the artists who make them.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+
             VStack(spacing: AFSpacing.sm) {
-                Text("iCloud keeps your profile secure. No password needed.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                Button { appState.enterApp(createProfile: false) } label: {
-                    Text("Browse Art").frame(maxWidth: .infinity)
+                Button { path = [.createAccount] } label: {
+                    Label("Get Started", systemImage: "chevron.forward")
+                        .labelStyle(TrailingIconLabelStyle())
+                        .frame(maxWidth: .infinity)
                 }
                 .primaryAction()
-                Button { appState.enterApp(createProfile: true) } label: {
-                    Text("Create Profile").frame(maxWidth: .infinity)
+
+                Button { path = [.signIn] } label: {
+                    Text("Sign In").frame(maxWidth: .infinity)
                 }
                 .secondaryAction()
+
+                Button("Browse as Guest") { appState.enterApp(createProfile: false) }
+                    .font(.subheadline)
+                    .tint(.white)
+                    .frame(minHeight: 44)
             }
-            .padding(.horizontal, AFSpacing.xl)
-            .padding(.vertical, AFSpacing.sm)
-            .background(.bar)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, AFSpacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            LinearGradient(
+                colors: [Color(white: 0.2), Color(white: 0.08), .black],
+                startPoint: .topTrailing,
+                endPoint: .bottomLeading
+            )
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
+        }
+        .environment(\.colorScheme, .dark)
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+    }
+}
+
+private struct TrailingIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: AFSpacing.xs) {
+            configuration.title
+            configuration.icon.font(.footnote.weight(.semibold))
         }
     }
 }

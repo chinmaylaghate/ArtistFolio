@@ -78,6 +78,148 @@ final class OwnershipTests: XCTestCase {
     }
 }
 
+@MainActor
+final class SessionTests: XCTestCase {
+    func testProfileFailureKeepsSignedInIdentityAndRecovers() async {
+        let backend = DemoBackend(mode: "artist")
+        backend.failsProfileLoads = true
+        let state = AppState(backend: backend)
+        await state.reloadSession()
+        XCTAssertEqual(state.session, .profileUnavailable(userID: "artist-sofia"))
+        XCTAssertTrue(state.hasICloud)
+
+        backend.failsProfileLoads = false
+        await state.reloadSession()
+        XCTAssertEqual(state.profile?.id, "artist-sofia")
+    }
+
+    func testTransientFailureKeepsCurrentProfile() async {
+        let backend = DemoBackend(mode: "artist")
+        let state = AppState(backend: backend)
+        await state.reloadSession()
+        backend.failsProfileLoads = true
+        await state.reloadSession()
+        XCTAssertEqual(state.profile?.id, "artist-sofia")
+    }
+
+    func testAccountSwitchFailureClearsPreviousUser() async {
+        let backend = DemoBackend(mode: "collector")
+        let state = AppState(backend: backend)
+        await state.reloadSession()
+        XCTAssertFalse(state.library.saved.isEmpty)
+
+        backend.switchAccount(to: "artist-sofia")
+        backend.failsProfileLoads = true
+        await state.reloadSession(resetIdentity: true)
+        XCTAssertNil(state.profile)
+        XCTAssertEqual(state.library, UserLibrary())
+        XCTAssertEqual(state.session, .profileUnavailable(userID: "artist-sofia"))
+    }
+
+    func testIdentityFailureAfterAccountChangeBecomesGuest() async {
+        let backend = DemoBackend(mode: "collector")
+        let state = AppState(backend: backend)
+        await state.reloadSession()
+
+        backend.failsIdentityLoads = true
+        await state.reloadSession(resetIdentity: true)
+        XCTAssertEqual(state.session, .guest)
+        XCTAssertEqual(state.library, UserLibrary())
+    }
+}
+
+@MainActor
+final class FirstTimeAccountTests: XCTestCase {
+    func testCreateAccountSavesProfileAndEntersApp() async throws {
+        let state = AppState(backend: DemoBackend(mode: "new"))
+        try await state.createAccount(displayName: "Ana Ruiz", role: .artist, contactEmail: "ana@example.com")
+        XCTAssertEqual(state.profile?.role, .artist)
+        XCTAssertEqual(state.profile?.contactEmail, "ana@example.com")
+        XCTAssertTrue(state.showFirstTimeSetup)
+        XCTAssertTrue(state.hasEnteredApp)
+    }
+
+    func testCreateAccountDoesNotOverwriteExistingProfile() async throws {
+        let state = AppState(backend: DemoBackend(mode: "artist"))
+        try await state.createAccount(displayName: "Someone Else", role: .collector, contactEmail: "")
+        XCTAssertEqual(state.profile?.displayName, "Sofia Martinez")
+        XCTAssertFalse(state.showFirstTimeSetup)
+    }
+
+    func testSignInWithoutProfileAsksToSignUp() async {
+        let state = AppState(backend: DemoBackend(mode: "new"))
+        let result = await state.continueWithICloud()
+        XCTAssertEqual(result, .needsProfile)
+    }
+
+    func testGuestSignInShowsICloudPrompt() async {
+        let state = AppState(backend: DemoBackend(mode: "guest"))
+        let result = await state.continueWithICloud()
+        XCTAssertEqual(result, .noICloud)
+        XCTAssertTrue(state.showICloudPrompt)
+    }
+}
+
+final class ArtCollectionTests: XCTestCase {
+    func testCollectionIDsAreUnique() {
+        XCTAssertEqual(Set(ArtCollection.all.map(\.id)).count, ArtCollection.all.count)
+    }
+
+    @MainActor
+    func testEmptyCollectionsAreHiddenAndUpfrontRefills() async {
+        let thumbnails = CollectionThumbnails()
+        await thumbnails.prepare(backend: DemoBackend(mode: "guest"), isVisible: { _ in true })
+        let ids = thumbnails.available.map(\.id)
+        XCTAssertFalse(ids.contains("portrait"))
+        XCTAssertTrue(ids.contains("minimalism"))
+        XCTAssertEqual(thumbnails.upfront.count, 8)
+        XCTAssertEqual(thumbnails.upfront + thumbnails.more, thumbnails.available)
+    }
+
+    @MainActor
+    func testBlockedArtistsWorkDoesNotKeepCollectionVisible() async {
+        let thumbnails = CollectionThumbnails()
+        await thumbnails.prepare(backend: DemoBackend(mode: "guest"), isVisible: { $0.artistId != "artist-sofia" })
+        XCTAssertFalse(thumbnails.available.map(\.id).contains("abstract"))
+    }
+
+    @MainActor
+    func testLoadFailureDoesNotHideCollections() async {
+        let backend = DemoBackend(mode: "guest")
+        backend.failsArtworkLoads = true
+        let thumbnails = CollectionThumbnails()
+        await thumbnails.prepare(backend: backend, isVisible: { _ in true })
+        XCTAssertEqual(thumbnails.available, ArtCollection.all)
+    }
+
+    func testCollectionMatchingAgreesWithBackendFilters() async throws {
+        let backend = DemoBackend(mode: "guest")
+        let catalog = try await backend.artworks(filters: ArtworkFilters(), cursor: nil).items
+        for collection in ArtCollection.all {
+            let results = try await backend.artworks(filters: collection.filters, cursor: nil).items
+            XCTAssertEqual(Set(results.map(\.id)), Set(catalog.filter(collection.matches).map(\.id)), collection.title)
+        }
+    }
+}
+
+final class ArtworkDimensionTests: XCTestCase {
+    func testOrientationComesFromRealDimensions() {
+        XCTAssertTrue(ArtworkDimensions(width: 60, height: 80, unit: "cm").isPortrait)
+        XCTAssertFalse(ArtworkDimensions(width: 120, height: 60, unit: "cm").isPortrait)
+        XCTAssertFalse(ArtworkDimensions(width: 50, height: 50, unit: "cm").isPortrait)
+    }
+
+    func testInchesConvertForWallScale() {
+        let size = ArtworkDimensions(width: 10, height: 20, unit: "in").sizeInCentimeters
+        XCTAssertEqual(size.width, 25.4, accuracy: 0.001)
+        XCTAssertEqual(size.height, 50.8, accuracy: 0.001)
+    }
+
+    func testInvalidDimensionsDoNotBreakLayout() {
+        XCTAssertEqual(ArtworkDimensions(width: 0, height: 0, unit: "cm").aspectRatio, 1)
+    }
+}
+
 final class SearchTokenTests: XCTestCase {
     func testTokensAreNormalizedAndUnique() {
         XCTAssertEqual(SearchTokens.make(from: ["Café Blue", "blue, OCEAN!"]), ["blue", "cafe", "ocean"])

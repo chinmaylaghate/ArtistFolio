@@ -33,6 +33,7 @@
 		C0000114 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000115 /* ProfileView.swift */; };
 		C0000116 /* SharedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000117 /* SharedComponents.swift */; };
 		C0000126 /* FirstTimeSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000127 /* FirstTimeSetupView.swift */; };
+		C0000128 /* ARPaintingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000129 /* ARPaintingView.swift */; };
 		C0000200 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C0000201 /* PrivacyInfo.xcprivacy */; };
 		C0000210 /* ArtistFolioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000211 /* ArtistFolioTests.swift */; };
 /* End PBXBuildFile section */
@@ -66,6 +67,7 @@
 		C0000115 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		C0000117 /* SharedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedComponents.swift; sourceTree = "<group>"; };
 		C0000127 /* FirstTimeSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstTimeSetupView.swift; sourceTree = "<group>"; };
+		C0000129 /* ARPaintingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARPaintingView.swift; sourceTree = "<group>"; };
 		C0000201 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		C0000211 /* ArtistFolioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistFolioTests.swift; sourceTree = "<group>"; };
 		C0000212 /* ArtistFolioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArtistFolioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -161,6 +163,7 @@
 				B0010021 /* SearchView.swift */,
 				B0010023 /* UploadView.swift */,
 				C0000127 /* FirstTimeSetupView.swift */,
+				C0000129 /* ARPaintingView.swift */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -321,6 +324,7 @@
 				B0010020 /* SearchView.swift in Sources */,
 				B0010022 /* UploadView.swift in Sources */,
 				C0000126 /* FirstTimeSetupView.swift in Sources */,
+				C0000128 /* ARPaintingView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

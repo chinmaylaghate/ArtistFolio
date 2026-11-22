@@ -10,6 +10,17 @@ struct ProfileView: View {
         List {
             if let profile = appState.profile {
                 Section { header(profile) }
+            } else if appState.isProfileUnavailable {
+                Section {
+                    EmptyStateView(
+                        icon: "wifi.exclamationmark",
+                        title: "Couldn't Load Profile",
+                        subtitle: "Check your connection and try again.",
+                        actionTitle: "Try Again"
+                    ) {
+                        Task { await appState.reloadSession() }
+                    }
+                }
             } else {
                 Section {
                     EmptyStateView(
@@ -128,7 +139,7 @@ struct ArtistListView: View {
                             ArtistRow(profile: artist)
                             Spacer()
                             Button("Unblock") { appState.setBlocked(artist.id, blocked: false) }
-                                .buttonStyle(.bordered)
+                                .afGlassButton()
                                 .controlSize(.small)
                         }
                     }
@@ -244,7 +255,7 @@ struct ArtistProfileView: View {
                                 .minimumScaleFactor(0.8)
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.bordered)
+                        .afGlassButton()
                         .controlSize(.regular)
                         .font(.footnote)
                     }

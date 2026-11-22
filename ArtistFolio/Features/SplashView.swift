@@ -5,13 +5,7 @@ struct SplashView: View {
     @State private var isVisible = false
 
     var body: some View {
-        VStack(spacing: AFSpacing.xs) {
-            Image(systemName: "photo.artframe")
-                .font(.system(.largeTitle))
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Wordmark().font(.title2)
-        }
+        BrandLogo(height: 104)
         .scaleEffect(isVisible || reduceMotion ? 1 : 0.92)
         .opacity(isVisible ? 1 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -28,7 +28,7 @@ struct FirstTimeSetupView: View {
             }
             .padding(.horizontal, AFSpacing.xl)
         }
-        .safeAreaInset(edge: .bottom) {
+        .afBottomBar {
             Button {
                 if appState.isArtist { appState.selectedTab = .studio }
                 dismiss()
@@ -38,7 +38,6 @@ struct FirstTimeSetupView: View {
             .primaryAction()
             .padding(.horizontal, AFSpacing.xl)
             .padding(.vertical, AFSpacing.sm)
-            .background(.bar)
         }
     }
 }

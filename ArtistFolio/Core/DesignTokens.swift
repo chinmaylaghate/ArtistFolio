@@ -1,11 +1,13 @@
 import SwiftUI
 
 extension Color {
+    // Ultramarine: the dark variant is lighter and pairs with black text to keep contrast.
     static let afPrimary = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.29, green: 0.53, blue: 0.95, alpha: 1)
-            : UIColor(red: 0.25, green: 0.45, blue: 0.83, alpha: 1)
+            ? UIColor(red: 0x8B / 255, green: 0x7F / 255, blue: 1, alpha: 1)
+            : UIColor(red: 0x3B / 255, green: 0x2B / 255, blue: 0xF0 / 255, alpha: 1)
     })
+    static let afOnPrimary = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? .black : .white })
 
     init(hex: String) {
         let digits = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -35,13 +37,59 @@ struct AFRadius {
 }
 
 extension View {
+    @ViewBuilder
+    func afGlass<S: Shape>(in shape: S, tint: Color? = nil, interactive: Bool = false) -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(Glass.regular.tint(tint).interactive(interactive), in: shape)
+        } else {
+            background(tint ?? Color.clear, in: shape)
+                .background(.regularMaterial, in: shape)
+        }
+    }
+
+    @ViewBuilder
+    func afGlassGroup(spacing: CGFloat = AFSpacing.xs) -> some View {
+        if #available(iOS 26, *) {
+            GlassEffectContainer(spacing: spacing) { self }
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder
+    func afGlassButton() -> some View {
+        if #available(iOS 26, *) {
+            buttonStyle(.glass)
+        } else {
+            buttonStyle(.bordered)
+        }
+    }
+
+    @ViewBuilder
+    func afGlassProminentButton() -> some View {
+        if #available(iOS 26, *) {
+            buttonStyle(.glassProminent)
+                .foregroundStyle(Color.afOnPrimary)
+        } else {
+            buttonStyle(.borderedProminent)
+                .foregroundStyle(Color.afOnPrimary)
+        }
+    }
+
+    @ViewBuilder
+    func afBottomBar<Bar: View>(@ViewBuilder content: () -> Bar) -> some View {
+        if #available(iOS 26, *) {
+            safeAreaBar(edge: .bottom, content: content)
+        } else {
+            safeAreaInset(edge: .bottom) { content().background(.bar) }
+        }
+    }
+
     func primaryAction() -> some View {
-        buttonStyle(.borderedProminent)
-            .controlSize(.large)
+        afGlassProminentButton().controlSize(.large)
     }
 
     func secondaryAction() -> some View {
-        buttonStyle(.bordered)
-            .controlSize(.large)
+        afGlassButton().controlSize(.large)
     }
 }

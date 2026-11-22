@@ -11,6 +11,19 @@ struct Wordmark: View {
     }
 }
 
+struct BrandLogo: View {
+    var height: CGFloat = 72
+
+    var body: some View {
+        Image("LogoMark")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(height: height)
+            .accessibilityLabel("Artist Folio")
+    }
+}
+
 struct FeatureRow: View {
     let icon: String
     let title: String
@@ -69,7 +82,8 @@ struct EmptyStateView: View {
             Text(subtitle)
         } actions: {
             if let actionTitle, let action {
-                Button(actionTitle, action: action).buttonStyle(.borderedProminent)
+                Button(actionTitle, action: action)
+                    .afGlassProminentButton()
             }
         }
     }
@@ -84,7 +98,7 @@ struct StatusBadge: View {
             .foregroundStyle(.white)
             .padding(.horizontal, AFSpacing.xs)
             .padding(.vertical, 3)
-            .background(status == .sold ? Color.black.opacity(0.75) : Color.orange, in: Capsule())
+            .background(status == .sold ? Color.black.opacity(0.8) : Color(white: 0.35), in: Capsule())
     }
 }
 
@@ -98,10 +112,10 @@ struct SaveButton: View {
         Button { appState.toggleSaved(artwork.id) } label: {
             Image(systemName: isSaved ? "heart.fill" : "heart")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isSaved ? Color.red : Color.primary)
+                .foregroundStyle(isSaved ? Color.afPrimary : Color.primary)
                 .symbolEffect(.bounce, value: isSaved)
                 .frame(width: 32, height: 32)
-                .background(.regularMaterial, in: Circle())
+                .afGlass(in: Circle(), interactive: true)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
@@ -139,6 +153,7 @@ struct ArtworkCard: View {
                 .font(.subheadline)
                 .foregroundStyle(.primary)
         }
+        .contentShape(Rectangle())
     }
 }
 
@@ -241,10 +256,10 @@ struct FilterChip: View {
         Button(action: action) {
             Text(label)
                 .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .foregroundStyle(isSelected ? Color.afOnPrimary : Color.primary)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .background(isSelected ? Color.afPrimary : Color(uiColor: .secondarySystemFill), in: Capsule())
+                .afGlass(in: Capsule(), tint: isSelected ? Color.afPrimary : nil, interactive: true)
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
         }
@@ -278,7 +293,7 @@ extension View {
     func artNavigation() -> some View {
         navigationDestination(for: Artwork.self) { ArtworkDetailView(artwork: $0) }
             .navigationDestination(for: ArtistLink.self) { ArtistProfileView(artistId: $0.id) }
-            .navigationDestination(for: StyleCollectionLink.self) { StyleCollectionView(link: $0) }
+            .navigationDestination(for: ArtCollection.self) { ArtCollectionView(link: $0) }
             .navigationDestination(for: ArtistDirectoryLink.self) { ArtistDirectoryView(artists: $0.artists) }
     }
 }

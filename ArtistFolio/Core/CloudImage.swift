@@ -83,7 +83,9 @@ struct CloudImage: View {
 
     var body: some View {
         ZStack {
-            Color(uiColor: .secondarySystemBackground)
+            if contentMode == .fill || image == nil {
+                Color(uiColor: .secondarySystemBackground)
+            }
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -95,6 +97,8 @@ struct CloudImage: View {
                     .foregroundStyle(.tertiary)
             }
         }
+        // Aspect-filled images overflow their clipped frame and would otherwise steal neighboring taps.
+        .allowsHitTesting(false)
         .task(id: url) {
             guard let url else { image = nil; return }
             let pixels = maxPixels
