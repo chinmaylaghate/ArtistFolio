@@ -65,7 +65,7 @@ private struct OnboardingPagesView: View {
                                 .multilineTextAlignment(.center)
                             Text(item.detail)
                                 .font(.body)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.afTextSecondary)
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.horizontal, AFSpacing.xl)
@@ -97,7 +97,7 @@ private struct OnboardingPagesView: View {
 
                 Button("Skip", action: onFinish)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.afTextSecondary)
                     .frame(minHeight: 44)
                     .opacity(isLast ? 0 : 1)
                     .disabled(isLast)
@@ -126,7 +126,7 @@ private struct LandingView: View {
                 Text("Where art\nfinds its home.").font(.title.bold())
                 Text("Discover original paintings and connect directly with the artists who make them.")
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(.white)
             }
 
             VStack(spacing: AFSpacing.sm) {
@@ -144,7 +144,7 @@ private struct LandingView: View {
 
                 Button("Browse as Guest") { appState.enterApp(createProfile: false) }
                     .font(.subheadline)
-                    .tint(.white)
+                    .foregroundStyle(.white)
                     .frame(minHeight: 44)
             }
         }

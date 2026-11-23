@@ -122,7 +122,7 @@ struct SearchView: View {
                                         Spacer()
                                         Image(systemName: "chevron.forward")
                                             .font(.footnote.weight(.semibold))
-                                            .foregroundStyle(.tertiary)
+                                            .foregroundStyle(Color.afIconSecondary)
                                     }
                                     .contentShape(Rectangle())
                                 }
@@ -269,13 +269,14 @@ private struct CollectionTile: View {
         Color.clear
             .aspectRatio(1.45, contentMode: .fit)
             .overlay(CloudImage(url: url, maxPixels: 600))
-            .overlay(LinearGradient(colors: [.clear, .black.opacity(0.72)], startPoint: .center, endPoint: .bottom))
-            .overlay(alignment: .bottomLeading) {
+            .overlay(alignment: .bottom) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
                     .lineLimit(2)
-                    .padding(AFSpacing.sm)
+                    .padding(.horizontal, AFSpacing.sm)
+                    .padding(.vertical, AFSpacing.xs)
+                    .afImageCaptionScrim(alignment: .leading)
             }
             .clipShape(RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
@@ -309,11 +310,13 @@ struct FiltersSheet: View {
                 Section("Price Range") {
                     VStack(alignment: .leading) {
                         LabeledContent("Minimum", value: filters.minPrice, format: .currency(code: "USD").precision(.fractionLength(0)))
+                            .labeledContentStyle(AFLabeledContentStyle())
                         Slider(value: $filters.minPrice, in: 0...max(filters.maxPrice, 100), step: 50)
                             .accessibilityLabel("Minimum price")
                     }
                     VStack(alignment: .leading) {
                         LabeledContent("Maximum", value: filters.maxPrice, format: .currency(code: "USD").precision(.fractionLength(0)))
+                            .labeledContentStyle(AFLabeledContentStyle())
                         Slider(value: $filters.maxPrice, in: min(filters.minPrice, ArtworkFilters.priceCeiling - 100)...ArtworkFilters.priceCeiling, step: 100)
                             .accessibilityLabel("Maximum price")
                     }

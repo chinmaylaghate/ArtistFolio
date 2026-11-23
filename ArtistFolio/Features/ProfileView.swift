@@ -97,11 +97,11 @@ struct ProfileView: View {
                     Text(profile.displayName).font(.title3.weight(.semibold))
                     Text(profile.location.isEmpty ? profile.role.label : "\(profile.role.label) · \(profile.location)")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.afTextSecondary)
                 }
             }
             if !profile.bio.isEmpty {
-                Text(profile.bio).font(.subheadline).foregroundStyle(.secondary)
+                Text(profile.bio).font(.subheadline).foregroundStyle(Color.afTextSecondary)
             }
             if profile.acceptsCommissions {
                 Label("Open to commissions", systemImage: "paintbrush")
@@ -234,10 +234,10 @@ struct ArtistProfileView: View {
                 if !profile.location.isEmpty {
                     Label(profile.location, systemImage: "mappin.and.ellipse")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.afTextSecondary)
                 }
                 if !profile.bio.isEmpty {
-                    Text(profile.bio).font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Text(profile.bio).font(.body).foregroundStyle(Color.afTextSecondary).multilineTextAlignment(.center)
                 }
                 if profile.acceptsCommissions {
                     Label("Open to commissions", systemImage: "paintbrush")

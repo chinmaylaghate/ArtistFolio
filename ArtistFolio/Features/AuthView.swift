@@ -43,7 +43,7 @@ struct CreateAccountView: View {
                 VStack(spacing: AFSpacing.sm) {
                     BrandLogo(height: 56)
                     Text("Create Account").font(.title2.bold())
-                    Text("Join artists and collectors").font(.subheadline).foregroundStyle(.secondary)
+                    Text("Join artists and collectors").font(.subheadline).foregroundStyle(Color.afTextSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
@@ -77,7 +77,7 @@ struct CreateAccountView: View {
                 Toggle("I Agree to the Terms", isOn: $acceptedTerms)
             } footer: {
                 if let message = errorMessage ?? validationMessage {
-                    Text(message).foregroundStyle(errorMessage == nil ? Color.secondary : Color.red)
+                    Text(message).foregroundStyle(errorMessage == nil ? Color.afTextSecondary : Color.red)
                 }
             }
 
@@ -131,14 +131,14 @@ struct SignInView: View {
                 BrandLogo(height: 56)
                 VStack(spacing: AFSpacing.xxs) {
                     Text("Welcome back").font(.title2.bold())
-                    Text("Sign in to continue to Artist Folio").font(.subheadline).foregroundStyle(.secondary)
+                    Text("Sign in to continue to Artist Folio").font(.subheadline).foregroundStyle(Color.afTextSecondary)
                 }
                 FeatureRow(icon: "icloud", title: "Your iCloud Is Your Account", detail: "No password to remember. We use the iCloud account on this device.")
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(AFSpacing.md)
                     .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
                 if let message {
-                    Text(message).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Text(message).font(.footnote).foregroundStyle(Color.afTextSecondary).multilineTextAlignment(.center)
                 }
             }
             .padding(AFSpacing.lg)

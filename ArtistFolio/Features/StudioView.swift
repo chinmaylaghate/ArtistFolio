@@ -53,7 +53,7 @@ struct StudioView: View {
                 Text(artwork.title).font(.body).lineLimit(1)
                 Text("\(artwork.priceText) · \(artwork.status.label)")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.afTextSecondary)
             }
         }
     }

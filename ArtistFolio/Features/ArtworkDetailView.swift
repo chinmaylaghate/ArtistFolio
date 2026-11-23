@@ -194,7 +194,7 @@ struct ArtworkDetailView: View {
                 Text(artwork.title).font(.title.bold())
                 Text("\(artwork.medium.rawValue) · \(String(artwork.year))")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.afTextSecondary)
                 HStack(spacing: AFSpacing.xs) {
                     Text(artwork.priceText).font(.title2.weight(.semibold))
                     if artwork.status != .available { StatusBadge(status: artwork.status) }
@@ -207,12 +207,12 @@ struct ArtworkDetailView: View {
                     AvatarCircle(name: artwork.artistName, url: artist?.avatarURL, size: 44)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(artwork.artistName).font(.body.weight(.medium))
-                        Text("View profile").font(.footnote).foregroundStyle(.secondary)
+                        Text("View profile").font(.footnote).foregroundStyle(Color.afTextSecondary)
                     }
                     Spacer()
                     Image(systemName: "chevron.forward")
                         .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.afIconSecondary)
                 }
                 .padding(AFSpacing.sm)
                 .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
@@ -223,7 +223,7 @@ struct ArtworkDetailView: View {
             if !artwork.details.isEmpty {
                 VStack(alignment: .leading, spacing: AFSpacing.xs) {
                     Text("About").font(.headline)
-                    Text(artwork.details).font(.body).foregroundStyle(.secondary)
+                    Text(artwork.details).font(.body).foregroundStyle(Color.afTextSecondary)
                 }
             }
 
@@ -240,6 +240,7 @@ struct ArtworkDetailView: View {
                     Divider()
                     LabeledContent("Status", value: artwork.status.label)
                 }
+                .labeledContentStyle(AFLabeledContentStyle())
                 .padding(AFSpacing.md)
                 .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
             }
@@ -249,7 +250,7 @@ struct ArtworkDetailView: View {
                     ForEach(artwork.tags, id: \.self) { tag in
                         Text("#\(tag)")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.afTextSecondary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, AFSpacing.xxs)
                             .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
@@ -259,7 +260,7 @@ struct ArtworkDetailView: View {
 
             Text("Artist Folio does not process sales. Arrange payment and delivery directly with the artist.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.afTextSecondary)
         }
         .padding(.horizontal, AFSpacing.lg)
         .padding(.top, AFSpacing.sm)
@@ -462,7 +463,7 @@ private struct WallPreview: View {
                     .overlay(alignment: .bottom) {
                         Text("Approximate scale")
                             .font(.caption)
-                            .foregroundStyle(.white.opacity(0.85))
+                            .foregroundStyle(.white)
                             .padding(.bottom, 96)
                     }
             }

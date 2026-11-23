@@ -4,7 +4,7 @@ struct Wordmark: View {
     var body: some View {
         HStack(spacing: 0) {
             Text("artist").fontWeight(.bold)
-            Text("folio").fontWeight(.light).foregroundStyle(.secondary)
+            Text("folio").fontWeight(.light).foregroundStyle(Color.afTextSecondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Artist Folio")
@@ -38,7 +38,7 @@ struct FeatureRow: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(.secondary)
+                Text(detail).font(.subheadline).foregroundStyle(Color.afTextSecondary)
             }
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -59,7 +59,7 @@ struct AvatarCircle: View {
             } else {
                 Text(String(name.prefix(1)).uppercased())
                     .font(.system(size: size * 0.42, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.afTextSecondary)
             }
         }
         .frame(width: size, height: size)
@@ -94,7 +94,7 @@ struct StatusBadge: View {
 
     var body: some View {
         Text(status.label)
-            .font(.caption2.weight(.semibold))
+            .font(.caption.weight(.semibold))
             .foregroundStyle(.white)
             .padding(.horizontal, AFSpacing.xs)
             .padding(.vertical, 3)
@@ -112,6 +112,7 @@ struct SaveButton: View {
         Button { appState.toggleSaved(artwork.id) } label: {
             Image(systemName: isSaved ? "heart.fill" : "heart")
                 .font(.subheadline.weight(.semibold))
+                .dynamicTypeSize(...DynamicTypeSize.xLarge)
                 .foregroundStyle(isSaved ? Color.afPrimary : Color.primary)
                 .symbolEffect(.bounce, value: isSaved)
                 .frame(width: 32, height: 32)
@@ -147,7 +148,7 @@ struct ArtworkCard: View {
                 .lineLimit(1)
             Text(artwork.artistName)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.afTextSecondary)
                 .lineLimit(1)
             Text(artwork.priceText)
                 .font(.subheadline)
@@ -204,7 +205,7 @@ struct ArtistRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(profile.displayName).font(.body).foregroundStyle(.primary)
                 if !profile.location.isEmpty {
-                    Text(profile.location).font(.footnote).foregroundStyle(.secondary)
+                    Text(profile.location).font(.footnote).foregroundStyle(Color.afTextSecondary)
                 }
             }
         }
@@ -266,6 +267,19 @@ struct FilterChip: View {
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: isSelected)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+struct AFLabeledContentStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: AFSpacing.sm) {
+            configuration.label
+            Spacer(minLength: AFSpacing.sm)
+            configuration.content
+                .foregroundStyle(Color.afTextSecondary)
+                .multilineTextAlignment(.trailing)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

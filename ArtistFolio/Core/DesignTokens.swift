@@ -9,6 +9,20 @@ extension Color {
     })
     static let afOnPrimary = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? .black : .white })
 
+    // Meets 4.5:1 on system backgrounds and fills, where the system secondary label does not in light mode.
+    static let afTextSecondary = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0xAE / 255, green: 0xAE / 255, blue: 0xB8 / 255, alpha: 1)
+            : UIColor(red: 0x5F / 255, green: 0x5F / 255, blue: 0x68 / 255, alpha: 1)
+    })
+
+    // Meets 3:1 for meaningful icons such as disclosure chevrons.
+    static let afIconSecondary = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0x8E / 255, green: 0x8E / 255, blue: 0x98 / 255, alpha: 1)
+            : UIColor(red: 0x6A / 255, green: 0x6A / 255, blue: 0x73 / 255, alpha: 1)
+    })
+
     init(hex: String) {
         let digits = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var value: UInt64 = 0
@@ -83,6 +97,18 @@ extension View {
         } else {
             safeAreaInset(edge: .bottom) { content().background(.bar) }
         }
+    }
+
+    // Keeps white caption text readable over any artwork and grows with Dynamic Type.
+    func afImageCaptionScrim(alignment: Alignment = .center) -> some View {
+        frame(maxWidth: .infinity, alignment: alignment)
+            .background(LinearGradient(colors: [.black.opacity(0.62), .black.opacity(0.82)], startPoint: .top, endPoint: .bottom))
+            .background(alignment: .top) {
+                LinearGradient(colors: [.clear, .black.opacity(0.62)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: AFSpacing.xxl)
+                    .offset(y: -AFSpacing.xxl)
+                    .allowsHitTesting(false)
+            }
     }
 
     func primaryAction() -> some View {

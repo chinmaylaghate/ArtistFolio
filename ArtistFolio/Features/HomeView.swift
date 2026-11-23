@@ -74,6 +74,7 @@ struct HomeView: View {
     @State private var selectedMedium: ArtworkMedium?
     @State private var showNewArtwork = false
     @AppStorage("dismissedFollowPrompt") private var dismissedFollowPrompt = false
+    @AppStorage("dismissedFeaturedCollectionID") private var dismissedFeaturedCollectionID = ""
 
     private let mediums: [ArtworkMedium] = [.oilOnCanvas, .acrylic, .watercolor, .mixedMedia, .digital, .drawing]
 
@@ -84,9 +85,12 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AFSpacing.lg) {
-                if let hero = heroArtwork {
-                    FeaturedCollectionCard(artwork: hero)
-                        .padding(.horizontal, AFSpacing.md)
+                if let hero = heroArtwork, dismissedFeaturedCollectionID != ArtCollection.featured.id {
+                    FeaturedCollectionCard(artwork: hero) {
+                        withAnimation(.smooth) { dismissedFeaturedCollectionID = ArtCollection.featured.id }
+                    }
+                    .padding(.horizontal, AFSpacing.md)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
                 }
 
                 if showFollowPrompt {
@@ -144,7 +148,13 @@ struct HomeView: View {
             .padding(.bottom, AFSpacing.md)
         }
         .navigationTitle("Home")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                BrandLogo(height: 34)
+                    .foregroundStyle(.primary)
+                    .accessibilityAddTraits(.isHeader)
+            }
             if appState.isArtist {
                 ToolbarItem(placement: .primaryAction) {
                     Button("New Artwork", systemImage: "plus") { showNewArtwork = true }
@@ -204,35 +214,66 @@ struct ArtistDirectoryLink: Hashable {
 
 private struct FeaturedCollectionCard: View {
     let artwork: Artwork
+    let onDismiss: () -> Void
+    @ScaledMetric(relativeTo: .title2) private var cardHeight: CGFloat = 176
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let link = ArtCollection.featured
+    private let scrim = LinearGradient(
+        stops: [
+            .init(color: .black.opacity(0.65), location: 0),
+            .init(color: .black.opacity(0.58), location: 0.24),
+            .init(color: .black.opacity(0.18), location: 0.4),
+            .init(color: .black.opacity(0.18), location: 0.5),
+            .init(color: .black.opacity(0.58), location: 0.6),
+            .init(color: .black.opacity(0.8), location: 1)
+        ],
+        startPoint: .top,
+        endPoint: .bottom
+    )
 
     var body: some View {
-        NavigationLink(value: link) {
-            Color.clear
-                .frame(height: 176)
-                .overlay(CloudImage(url: artwork.thumbnailURL, maxPixels: 1200))
-                .overlay(LinearGradient(colors: [.black.opacity(0.35), .black.opacity(0.15), .black.opacity(0.7)], startPoint: .top, endPoint: .bottom))
-                .overlay {
-                    VStack(spacing: AFSpacing.xxs) {
-                        Label("FEATURED COLLECTION", systemImage: "sparkles")
-                            .font(.caption.weight(.medium))
-                            .tracking(1.2)
-                            .foregroundStyle(.white.opacity(0.85))
-                        Spacer()
-                        Text(link.title).font(.title2.weight(.semibold))
-                        Text(link.subtitle).font(.subheadline).foregroundStyle(.white.opacity(0.85))
+        ZStack(alignment: .topTrailing) {
+            NavigationLink(value: link) {
+                Color.clear
+                    .frame(height: cardHeight)
+                    .overlay(CloudImage(url: artwork.thumbnailURL, maxPixels: 1200))
+                    .overlay(scrim)
+                    .overlay(Color.black.opacity(dynamicTypeSize >= .xLarge ? 0.5 : 0))
+                    .overlay {
+                        VStack(spacing: AFSpacing.xxs) {
+                            Label("FEATURED COLLECTION", systemImage: "sparkles")
+                                .font(.caption.weight(.medium))
+                                .tracking(1.2)
+                            Spacer()
+                            Text(link.title).font(.title2.weight(.semibold))
+                            Text(link.subtitle).font(.subheadline)
+                        }
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, AFSpacing.md)
+                        .padding(.horizontal, 44)
                     }
+                    .clipShape(RoundedRectangle(cornerRadius: AFRadius.lg, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: AFRadius.lg, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Featured collection, \(link.title). \(link.subtitle)")
+            .accessibilityAddTraits(.isButton)
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.footnote.weight(.semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.xLarge)
                     .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(AFSpacing.md)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: AFRadius.lg, style: .continuous))
-                .contentShape(RoundedRectangle(cornerRadius: AFRadius.lg, style: .continuous))
+                    .frame(width: 28, height: 28)
+                    .background(.black.opacity(0.55), in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss featured collection")
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Featured collection, \(link.title). \(link.subtitle)")
-        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -253,13 +294,14 @@ private struct FollowPromptCard: View {
                     Text("Follow your favourite artists").font(.headline)
                     Text("See their new work first, right here on Home.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.afTextSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
                         .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+                        .foregroundStyle(Color.afTextSecondary)
                         .frame(width: 28, height: 28)
                         .afGlass(in: Circle(), interactive: true)
                         .frame(width: 44, height: 44)
@@ -307,7 +349,7 @@ private struct FeaturedArtistsSection: View {
                                     .font(.subheadline)
                                     .lineLimit(1)
                                 if let city = artist.location.components(separatedBy: ",").first, !city.isEmpty {
-                                    Text(city).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    Text(city).font(.caption).foregroundStyle(Color.afTextSecondary).lineLimit(1)
                                 }
                             }
                             .frame(width: 84)
@@ -326,6 +368,7 @@ private struct FeaturedArtistsSection: View {
 
 private struct JustListedSection: View {
     let artworks: [Artwork]
+    @ScaledMetric(relativeTo: .footnote) private var cardHeight: CGFloat = 168
 
     var body: some View {
         VStack(alignment: .leading, spacing: AFSpacing.sm) {
@@ -341,16 +384,16 @@ private struct JustListedSection: View {
                     ForEach(artworks) { artwork in
                         NavigationLink(value: artwork) {
                             Color(uiColor: .secondarySystemBackground)
-                                .frame(width: 140, height: 168)
+                                .frame(width: 140, height: cardHeight)
                                 .overlay(CloudImage(url: artwork.thumbnailURL, maxPixels: 500, contentMode: .fit))
-                                .overlay(LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom))
                                 .overlay(alignment: .bottom) {
                                     VStack(spacing: 1) {
                                         Text(artwork.title).font(.footnote.weight(.semibold)).lineLimit(1)
-                                        Text(artwork.priceText).font(.caption).foregroundStyle(.white.opacity(0.85))
+                                        Text(artwork.priceText).font(.caption)
                                     }
                                     .foregroundStyle(.white)
                                     .padding(AFSpacing.xs)
+                                    .afImageCaptionScrim()
                                 }
                                 .clipShape(RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
                                 .contentShape(RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
@@ -392,7 +435,7 @@ struct ArtCollectionView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AFSpacing.md) {
-                        Text(link.subtitle).font(.subheadline).foregroundStyle(.secondary)
+                        Text(link.subtitle).font(.subheadline).foregroundStyle(Color.afTextSecondary)
                         ArtworkGrid(artworks: artworks) {
                             Task { await loadMore() }
                         }

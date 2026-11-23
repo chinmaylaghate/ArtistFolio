@@ -108,7 +108,7 @@ struct ProfileEditorView: View {
                 if let message = errorMessage ?? validationMessage {
                     Section {
                     } footer: {
-                        Text(message).foregroundStyle(errorMessage == nil ? Color.secondary : Color.red)
+                        Text(message).foregroundStyle(errorMessage == nil ? Color.afTextSecondary : Color.red)
                     }
                 }
             }

@@ -98,7 +98,7 @@ struct ArtworkEditorView: View {
                     Text("Tags")
                 } footer: {
                     if let message = errorMessage ?? validationMessage {
-                        Text(message).foregroundStyle(errorMessage == nil ? Color.secondary : Color.red)
+                        Text(message).foregroundStyle(errorMessage == nil ? Color.afTextSecondary : Color.red)
                     } else {
                         Text("Separate tags with commas.")
                     }
