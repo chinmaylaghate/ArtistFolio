@@ -1,4 +1,6 @@
+import LinkPresentation
 import SwiftUI
+import UIKit
 
 enum ShareFormat: String, CaseIterable, Identifiable {
     case story, post
@@ -58,12 +60,10 @@ enum ShareFormatter {
         return output
     }
 
-    static func fileName(for title: String, format: ShareFormat) -> String {
-        let words = title
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-        let base = words.isEmpty ? "Artwork" : words.joined(separator: "-")
-        return "\(base.prefix(60))-ArtistFolio-\(format.label).jpg"
+    // Instagram and similar extensions reject mixed image and text items, so they receive only the image.
+    static func caption(_ caption: String, for activityType: UIActivity.ActivityType?) -> String? {
+        guard let activityType, activityType.rawValue.hasPrefix("com.apple.UIKit.activity.") else { return nil }
+        return caption
     }
 }
 
@@ -74,9 +74,57 @@ private struct ShareCardAssets {
     var artworkCount = 0
 }
 
-private struct RenderedShare {
-    let url: URL
+private final class ShareImageItem: NSObject, UIActivityItemSource {
+    private let image: UIImage
+    private let title: String
+
+    init(image: UIImage, title: String) {
+        self.image = image
+        self.title = title
+    }
+
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any { image }
+
+    func activityViewController(_ activityViewController: UIActivityViewController, itemForActivityType activityType: UIActivity.ActivityType?) -> Any? { image }
+
+    func activityViewControllerLinkMetadata(_ activityViewController: UIActivityViewController) -> LPLinkMetadata? {
+        let metadata = LPLinkMetadata()
+        metadata.title = title
+        metadata.imageProvider = NSItemProvider(object: image)
+        return metadata
+    }
+}
+
+private final class ShareCaptionItem: NSObject, UIActivityItemSource {
+    private let caption: String
+
+    init(caption: String) {
+        self.caption = caption
+    }
+
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any { caption }
+
+    func activityViewController(_ activityViewController: UIActivityViewController, itemForActivityType activityType: UIActivity.ActivityType?) -> Any? {
+        ShareFormatter.caption(caption, for: activityType)
+    }
+}
+
+private struct ActivityShareSheet: UIViewControllerRepresentable {
+    @Environment(\.dismiss) private var dismiss
     let image: UIImage
+    let title: String
+    let caption: String
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: [ShareImageItem(image: image, title: title), ShareCaptionItem(caption: caption)],
+            applicationActivities: nil
+        )
+        controller.completionWithItemsHandler = { _, _, _, _ in dismiss() }
+        return controller
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 struct SocialShareSheet: View {
@@ -87,7 +135,8 @@ struct SocialShareSheet: View {
     @State private var format: ShareFormat = .story
     @State private var includePrice = false
     @State private var assets: ShareCardAssets?
-    @State private var rendered: RenderedShare?
+    @State private var rendered: UIImage?
+    @State private var showActivity = false
     @State private var didFail = false
 
     private var isArtwork: Bool {
@@ -127,6 +176,12 @@ struct SocialShareSheet: View {
         }
         .task { await loadAssets() }
         .task(id: renderKey) { render() }
+        .sheet(isPresented: $showActivity) {
+            if let rendered {
+                ActivityShareSheet(image: rendered, title: subject.title, caption: ShareFormatter.caption(for: subject))
+                    .presentationDetents([.medium, .large])
+            }
+        }
     }
 
     @ViewBuilder
@@ -137,7 +192,7 @@ struct SocialShareSheet: View {
                 Task { await loadAssets() }
             }
         } else if let rendered {
-            Image(uiImage: rendered.image)
+            Image(uiImage: rendered)
                 .resizable()
                 .scaledToFit()
                 .clipShape(RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
@@ -147,27 +202,13 @@ struct SocialShareSheet: View {
         }
     }
 
-    @ViewBuilder
     private var shareButton: some View {
-        if let rendered {
-            ShareLink(
-                item: rendered.url,
-                subject: Text(subject.title),
-                message: Text(ShareFormatter.caption(for: subject)),
-                preview: SharePreview(subject.title, image: Image(uiImage: rendered.image))
-            ) {
-                Label("Share \(format.label)", systemImage: "square.and.arrow.up")
-                    .frame(maxWidth: .infinity)
-            }
-            .primaryAction()
-        } else {
-            Button {} label: {
-                Label("Share \(format.label)", systemImage: "square.and.arrow.up")
-                    .frame(maxWidth: .infinity)
-            }
-            .primaryAction()
-            .disabled(true)
+        Button { showActivity = true } label: {
+            Label("Share \(format.label)", systemImage: "square.and.arrow.up")
+                .frame(maxWidth: .infinity)
         }
+        .primaryAction()
+        .disabled(rendered == nil)
     }
 
     private func loadAssets() async {
@@ -214,19 +255,11 @@ struct SocialShareSheet: View {
         renderer.isOpaque = true
         renderer.proposedSize = ProposedViewSize(format.size)
 
-        guard let image = renderer.uiImage, let data = image.jpegData(compressionQuality: 0.92) else {
+        guard let image = renderer.uiImage else {
             didFail = true
             return
         }
-        do {
-            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("SharedCards", isDirectory: true)
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let url = directory.appendingPathComponent(ShareFormatter.fileName(for: subject.title, format: format))
-            try data.write(to: url, options: .atomic)
-            rendered = RenderedShare(url: url, image: image)
-        } catch {
-            didFail = true
-        }
+        rendered = image
     }
 
     @ViewBuilder

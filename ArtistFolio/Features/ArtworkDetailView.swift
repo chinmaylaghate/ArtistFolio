@@ -510,7 +510,7 @@ struct ReportSheet: View {
         NavigationStack {
             Group {
                 if didSend {
-                    EmptyStateView(icon: "checkmark.shield", title: "Report Received", subtitle: "Thank you. We review reports within 24 hours.", actionTitle: "Done") {
+                    EmptyStateView(icon: "checkmark.shield", title: "Report Received", subtitle: "Thank you. We will review your report.", actionTitle: "Done") {
                         dismiss()
                     }
                 } else {

@@ -1,4 +1,5 @@
 import CloudKit
+import UIKit
 import XCTest
 @testable import ArtistFolio
 
@@ -317,8 +318,9 @@ final class ShareFormatterTests: XCTestCase {
         XCTAssertEqual(tags, ["Ocean", "calm", "blue"])
     }
 
-    func testFileNameCannotEscapeDirectory() {
-        XCTAssertEqual(ShareFormatter.fileName(for: "../Blue / Study", format: .post), "Blue-Study-ArtistFolio-Post.jpg")
-        XCTAssertEqual(ShareFormatter.fileName(for: "///", format: .story), "Artwork-ArtistFolio-Story.jpg")
+    func testCaptionIsWithheldFromThirdPartyShareTargets() {
+        XCTAssertNil(ShareFormatter.caption("Caption", for: UIActivity.ActivityType("com.burbn.instagram.shareextension")))
+        XCTAssertNil(ShareFormatter.caption("Caption", for: nil))
+        XCTAssertEqual(ShareFormatter.caption("Caption", for: .message), "Caption")
     }
 }
