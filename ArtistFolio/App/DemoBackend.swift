@@ -13,8 +13,10 @@ final class DemoBackend: ArtBackend {
     var failsArtworkLoads = false
 
     init(mode: String) {
-        let sofia = UserProfile(id: "artist-sofia", displayName: "Sofia Martinez", bio: "Abstract painter working with oil and gold leaf.", role: .artist, location: "Barcelona, Spain", website: "example.com", instagramHandle: "sofia.paints", contactEmail: "sofia@example.com", acceptsCommissions: true)
-        let james = UserProfile(id: "artist-james", displayName: "James Thornton", bio: "Quiet seascapes in watercolor.", role: .artist, location: "Cornwall, UK", instagramHandle: "james.tides", contactEmail: "james@example.com")
+        var sofia = UserProfile(id: "artist-sofia", displayName: "Sofia Martinez", bio: "Abstract painter working with oil and gold leaf.", role: .artist, location: "Barcelona, Spain", website: "example.com", instagramHandle: "sofia.paints", contactEmail: "sofia@example.com", acceptsCommissions: true)
+        sofia.avatarURL = Self.avatar(initials: "SM", red: 0.72, green: 0.33, blue: 0.18, cacheKey: "demo-avatar-sofia")
+        var james = UserProfile(id: "artist-james", displayName: "James Thornton", bio: "Quiet seascapes in watercolor.", role: .artist, location: "Cornwall, UK", instagramHandle: "james.tides", contactEmail: "james@example.com")
+        james.avatarURL = Self.avatar(initials: "JT", red: 0.15, green: 0.42, blue: 0.58, cacheKey: "demo-avatar-james")
         profiles = [sofia.id: sofia, james.id: james]
         items = [
             Self.art("art-1", sofia, "Crimson Dreams", 1200, .oilOnCanvas, .abstract, ["#C0392B", "#F39C12"]),
@@ -27,7 +29,9 @@ final class DemoBackend: ArtBackend {
         case "artist": userID = sofia.id
         case "collector":
             userID = "collector-maya"
-            profiles["collector-maya"] = UserProfile(id: "collector-maya", displayName: "Maya Chen", role: .collector, location: "Toronto, Canada")
+            var maya = UserProfile(id: "collector-maya", displayName: "Maya Chen", role: .collector, location: "Toronto, Canada")
+            maya.avatarURL = Self.avatar(initials: "MC", red: 0.38, green: 0.22, blue: 0.65, cacheKey: "demo-avatar-maya")
+            profiles["collector-maya"] = maya
             state.saved = ["art-2"]
             state.following = [james.id]
         case "new": userID = "new-user"
@@ -40,16 +44,44 @@ final class DemoBackend: ArtBackend {
     }
 
     private static func image(key: String, colors: [String], aspect: CGFloat) -> URL? {
+        let namedMap = ["art-1": "demo_art_1", "art-2": "demo_art_2", "art-3": "demo_art_3",
+                        "art-4": "demo_art_4", "art-5": "demo_art_5"]
         let size = aspect >= 1 ? CGSize(width: 900, height: 900 / aspect) : CGSize(width: 760 * aspect, height: 760)
-        let rendered = UIGraphicsImageRenderer(size: size).image { context in
-            let cgColors = colors.map { UIColor(Color(hex: $0)).cgColor } as CFArray
-            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cgColors, locations: nil) {
-                context.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width, y: size.height), options: [])
+        let rendered: UIImage
+        let cacheKey: String
+        if let name = namedMap[key], let src = UIImage(named: name) {
+            cacheKey = "demo-v3-\(key)"
+            rendered = UIGraphicsImageRenderer(size: size).image { _ in src.draw(in: CGRect(origin: .zero, size: size)) }
+        } else {
+            cacheKey = "demo-v2-\(key)"
+            rendered = UIGraphicsImageRenderer(size: size).image { context in
+                let cgColors = colors.map { UIColor(Color(hex: $0)).cgColor } as CFArray
+                if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cgColors, locations: nil) {
+                    context.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width, y: size.height), options: [])
+                }
             }
         }
-        guard let data = rendered.jpegData(compressionQuality: 0.8), let temp = try? ImageStore.temporaryFile(data) else { return nil }
+        guard let data = rendered.jpegData(compressionQuality: 0.85), let temp = try? ImageStore.temporaryFile(data) else { return nil }
         defer { try? FileManager.default.removeItem(at: temp) }
-        return ImageStore.cacheFile(temp, key: "demo-v2-\(key)")
+        return ImageStore.cacheFile(temp, key: cacheKey)
+    }
+
+    private static func avatar(initials: String, red: CGFloat, green: CGFloat, blue: CGFloat, cacheKey: String) -> URL? {
+        let size = CGSize(width: 200, height: 200)
+        let rendered = UIGraphicsImageRenderer(size: size).image { ctx in
+            UIColor(red: red, green: green, blue: blue, alpha: 1).setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 72, weight: .semibold),
+                .foregroundColor: UIColor.white
+            ]
+            let str = initials as NSString
+            let sz = str.size(withAttributes: attrs)
+            str.draw(at: CGPoint(x: (size.width - sz.width) / 2, y: (size.height - sz.height) / 2), withAttributes: attrs)
+        }
+        guard let data = rendered.jpegData(compressionQuality: 0.9), let temp = try? ImageStore.temporaryFile(data) else { return nil }
+        defer { try? FileManager.default.removeItem(at: temp) }
+        return ImageStore.cacheFile(temp, key: cacheKey)
     }
 
     func currentUserID() async throws -> String? {
