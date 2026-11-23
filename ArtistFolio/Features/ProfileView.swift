@@ -18,7 +18,12 @@ struct ProfileView: View {
                         subtitle: "Check your connection and try again.",
                         actionTitle: "Try Again"
                     ) {
-                        Task { await appState.reloadSession() }
+                        Task {
+                            await appState.reloadSession()
+                            if appState.isProfileUnavailable {
+                                appState.alertMessage = AppError.accountUnavailable.errorDescription
+                            }
+                        }
                     }
                 }
             } else {

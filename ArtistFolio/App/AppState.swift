@@ -144,10 +144,9 @@ final class AppState: ObservableObject {
         switch await continueWithICloud() {
         case .entered, .noICloud:
             return
-        case .unavailable, .needsProfile:
-            // .unavailable means the profile fetch failed (network/schema error), but the user
-            // has iCloud — attempt to save anyway; saveProfile will surface a clearer error if
-            // the connection is truly down.
+        case .unavailable:
+            throw AppError.accountUnavailable
+        case .needsProfile:
             guard let userID = currentUserID else { throw AppError.iCloudRequired }
             var profile = UserProfile(id: userID, displayName: displayName, role: role)
             profile.contactEmail = role == .artist ? contactEmail : ""
