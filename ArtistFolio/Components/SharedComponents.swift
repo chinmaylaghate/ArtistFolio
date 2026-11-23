@@ -161,6 +161,7 @@ struct ArtworkCard: View {
 struct ArtworkLink: View {
     @EnvironmentObject var appState: AppState
     let artwork: Artwork
+    @State private var showShare = false
 
     var body: some View {
         NavigationLink(value: artwork) {
@@ -174,7 +175,10 @@ struct ArtworkLink: View {
                 Label(appState.isSaved(artwork.id) ? "Remove from Saved" : "Save",
                       systemImage: appState.isSaved(artwork.id) ? "heart.slash" : "heart")
             }
-            ShareLink(item: "\(artwork.title) by \(artwork.artistName) on Artist Folio")
+            Button("Share", systemImage: "square.and.arrow.up") { showShare = true }
+        }
+        .sheet(isPresented: $showShare) {
+            SocialShareSheet(subject: .artwork(artwork, preferredImage: nil))
         }
     }
 }

@@ -33,6 +33,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>ArtistFolio uses the camera to let you preview artwork in your space using augmented reality.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ArtistFolio saves share images you create to your photo library.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

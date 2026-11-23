@@ -16,6 +16,7 @@
 		B0010018 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010019 /* AuthView.swift */; };
 		B001001A /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001001B /* MainTabView.swift */; };
 		B001001C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001001D /* HomeView.swift */; };
+		B00100F0 /* SocialShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00100F1 /* SocialShareView.swift */; };
 		B001001E /* ArtworkDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001001F /* ArtworkDetailView.swift */; };
 		B0010020 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010021 /* SearchView.swift */; };
 		B0010022 /* UploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010023 /* UploadView.swift */; };
@@ -48,6 +49,7 @@
 		B0010019 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		B001001B /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		B001001D /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		B00100F1 /* SocialShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialShareView.swift; sourceTree = "<group>"; };
 		B001001F /* ArtworkDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkDetailView.swift; sourceTree = "<group>"; };
 		B0010021 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		B0010023 /* UploadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadView.swift; sourceTree = "<group>"; };
@@ -159,6 +161,7 @@
 				B0010017 /* OnboardingView.swift */,
 				B0010019 /* AuthView.swift */,
 				B001001D /* HomeView.swift */,
+				B00100F1 /* SocialShareView.swift */,
 				B001001F /* ArtworkDetailView.swift */,
 				B0010021 /* SearchView.swift */,
 				B0010023 /* UploadView.swift */,
@@ -320,6 +323,7 @@
 				B0010018 /* AuthView.swift in Sources */,
 				B001001A /* MainTabView.swift in Sources */,
 				B001001C /* HomeView.swift in Sources */,
+				B00100F0 /* SocialShareView.swift in Sources */,
 				B001001E /* ArtworkDetailView.swift in Sources */,
 				B0010020 /* SearchView.swift in Sources */,
 				B0010022 /* UploadView.swift in Sources */,

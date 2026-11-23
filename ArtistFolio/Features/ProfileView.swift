@@ -5,6 +5,7 @@ struct ProfileView: View {
     @State private var showEditor = false
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
+    @State private var showShare = false
 
     var body: some View {
         List {
@@ -69,6 +70,11 @@ struct ProfileView: View {
         }
         .navigationTitle("Profile")
         .toolbar {
+            if appState.isArtist {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Share Profile", systemImage: "square.and.arrow.up") { showShare = true }
+                }
+            }
             if appState.profile != nil {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Edit") { showEditor = true }
@@ -76,6 +82,11 @@ struct ProfileView: View {
             }
         }
         .sheet(isPresented: $showEditor) { ProfileEditorView(mode: .edit) }
+        .sheet(isPresented: $showShare) {
+            if let profile = appState.profile {
+                SocialShareSheet(subject: .artist(profile))
+            }
+        }
         .confirmationDialog("Delete your account?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete Permanently", role: .destructive) {
                 Task {
@@ -174,6 +185,7 @@ struct ArtistProfileView: View {
     @State private var errorMessage: String?
     @State private var showReport = false
     @State private var showBlockConfirm = false
+    @State private var showShare = false
 
     private var isSelf: Bool { artistId == appState.currentUserID }
 
@@ -191,6 +203,11 @@ struct ArtistProfileView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
+            if isSelf, profile?.role == .artist {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Share Profile", systemImage: "square.and.arrow.up") { showShare = true }
+                }
+            }
             if !isSelf, profile != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -209,6 +226,11 @@ struct ArtistProfileView: View {
             }
         } message: {
             Text("You won't see their work. You can unblock them from Profile.")
+        }
+        .sheet(isPresented: $showShare) {
+            if let profile {
+                SocialShareSheet(subject: .artist(profile))
+            }
         }
         .sheet(isPresented: $showReport) {
             ReportSheet(target: .artist, targetID: artistId, name: profile?.displayName ?? "Artist")

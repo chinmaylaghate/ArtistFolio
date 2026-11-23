@@ -286,3 +286,39 @@ final class ImagePipelineTests: XCTestCase {
         XCTAssertThrowsError(try ImageProcessor.process(Data([1, 2, 3])))
     }
 }
+
+final class ShareFormatterTests: XCTestCase {
+    private func artwork() -> Artwork {
+        Artwork(id: "a1", artistId: "owner", artistName: "Ana Ruiz", title: "Blue Study", details: "", price: 1250, status: .sold, medium: .watercolor, style: .minimalism, dimensions: ArtworkDimensions(width: 30, height: 40, unit: "in"), year: 2025)
+    }
+
+    func testFormatsUseSocialDimensions() {
+        XCTAssertEqual(ShareFormat.story.size, CGSize(width: 1080, height: 1920))
+        XCTAssertEqual(ShareFormat.post.size, CGSize(width: 1080, height: 1350))
+    }
+
+    func testCaptionNamesArtworkWithoutPrice() {
+        let caption = ShareFormatter.caption(for: .artwork(artwork(), preferredImage: nil))
+        XCTAssertTrue(caption.contains("Blue Study by Ana Ruiz"))
+        XCTAssertTrue(caption.contains(ShareFormatter.appStoreLink))
+        XCTAssertFalse(caption.contains("1,250"))
+    }
+
+    func testProfileCaptionExcludesContactDetails() {
+        var profile = UserProfile(id: "owner", displayName: "Ana Ruiz", role: .artist)
+        profile.contactEmail = "ana@example.com"
+        let caption = ShareFormatter.caption(for: .artist(profile))
+        XCTAssertTrue(caption.contains("Ana Ruiz"))
+        XCTAssertFalse(caption.contains("ana@example.com"))
+    }
+
+    func testDisplayTagsAreCleanedDedupedAndLimited() {
+        let tags = ShareFormatter.displayTags(["#Ocean ", "ocean", "", " # ", "calm", "blue", "extra"])
+        XCTAssertEqual(tags, ["Ocean", "calm", "blue"])
+    }
+
+    func testFileNameCannotEscapeDirectory() {
+        XCTAssertEqual(ShareFormatter.fileName(for: "../Blue / Study", format: .post), "Blue-Study-ArtistFolio-Post.jpg")
+        XCTAssertEqual(ShareFormatter.fileName(for: "///", format: .story), "Artwork-ArtistFolio-Story.jpg")
+    }
+}

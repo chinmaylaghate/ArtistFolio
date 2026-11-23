@@ -11,6 +11,7 @@ struct ArtworkDetailView: View {
     @State private var showReport = false
     @State private var showBlockConfirm = false
     @State private var showEditor = false
+    @State private var showShare = false
     @State private var viewerMode: ArtworkViewMode?
     @State private var isPastHero = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -53,7 +54,7 @@ struct ArtworkDetailView: View {
                 .tint(toolbarTint)
                 .sensoryFeedback(.selection, trigger: isSaved)
 
-                ShareLink(item: "\(artwork.title) by \(artwork.artistName) on Artist Folio")
+                Button("Share", systemImage: "square.and.arrow.up") { showShare = true }
                     .tint(toolbarTint)
 
                 if !isOwner {
@@ -80,6 +81,9 @@ struct ArtworkDetailView: View {
             }
         } message: {
             Text("You won't see their work. You can unblock them from Profile.")
+        }
+        .sheet(isPresented: $showShare) {
+            SocialShareSheet(subject: .artwork(artwork, preferredImage: galleryURLs.indices.contains(selectedImage) ? galleryURLs[selectedImage] : nil))
         }
         .sheet(isPresented: $showReport) {
             ReportSheet(target: .artwork, targetID: artwork.id, name: artwork.title)
