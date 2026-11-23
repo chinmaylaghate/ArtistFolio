@@ -148,15 +148,17 @@ struct ArtworkEditorView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: AFSpacing.xs) {
                         if previews.isEmpty, let url = existing?.thumbnailURL {
-                            CloudImage(url: url, maxPixels: 300)
+                            CloudImage(url: url, maxPixels: 300, contentMode: .fit)
                                 .frame(width: 88, height: 88)
+                                .background(Color(uiColor: .secondarySystemBackground))
                                 .clipShape(RoundedRectangle(cornerRadius: AFRadius.sm, style: .continuous))
                         }
                         ForEach(Array(previews.enumerated()), id: \.offset) { _, image in
                             Image(uiImage: image)
                                 .resizable()
-                                .scaledToFill()
+                                .scaledToFit()
                                 .frame(width: 88, height: 88)
+                                .background(Color(uiColor: .secondarySystemBackground))
                                 .clipShape(RoundedRectangle(cornerRadius: AFRadius.sm, style: .continuous))
                                 .accessibilityLabel("Selected photo")
                         }

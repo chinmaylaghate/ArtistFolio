@@ -56,6 +56,15 @@ enum ImageProcessor {
         return UIImage(cgImage: image)
     }
 
+    static func aspectRatio(_ url: URL) -> CGFloat? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Double,
+              let height = properties[kCGImagePropertyPixelHeight] as? Double,
+              width > 0, height > 0 else { return nil }
+        return CGFloat(width / height)
+    }
+
     private static func encode(_ data: Data, maxPixels: Int, quality: CGFloat) -> Data? {
         guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
               let image = thumbnail(source, maxPixels: maxPixels) else { return nil }

@@ -45,8 +45,9 @@ struct StudioView: View {
 
     private func row(_ artwork: Artwork) -> some View {
         HStack(spacing: AFSpacing.sm) {
-            CloudImage(url: artwork.thumbnailURL, maxPixels: 240)
+            CloudImage(url: artwork.thumbnailURL, maxPixels: 240, contentMode: .fit)
                 .frame(width: 60, height: 60)
+                .background(Color(uiColor: .secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: AFRadius.sm, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(artwork.title).font(.body).lineLimit(1)

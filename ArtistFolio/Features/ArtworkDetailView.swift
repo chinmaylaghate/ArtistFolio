@@ -169,26 +169,17 @@ struct ArtworkDetailView: View {
         .accessibilityLabel("Photos of \(artwork.title). Double tap to view full screen.")
     }
 
-    @ViewBuilder
     private func heroImage(_ url: URL) -> some View {
-        if artwork.dimensions.isPortrait {
-            Color.clear
-                .overlay(CloudImage(url: url, maxPixels: 1600))
-                .clipped()
-        } else {
-            // Wide and square work is shown whole over a blurred copy instead of being cropped.
-            Color.clear
-                .overlay(CloudImage(url: url, maxPixels: 400).blur(radius: 36).overlay(Color.black.opacity(0.25)))
-                .clipped()
-                .overlay {
-                    CloudImage(url: url, maxPixels: 1600, contentMode: .fit)
-                        .aspectRatio(artwork.dimensions.aspectRatio, contentMode: .fit)
-                        .shadow(color: .black.opacity(0.35), radius: 14, y: 6)
-                        .padding(.top, 100)
-                        .padding(.bottom, Self.sheetOverlap + 64)
-                        .padding(.horizontal, AFSpacing.md)
-                }
-        }
+        Color.clear
+            .overlay(CloudImage(url: url, maxPixels: 400).blur(radius: 36).overlay(Color.black.opacity(0.25)))
+            .clipped()
+            .overlay {
+                CloudImage(url: url, maxPixels: 1600, contentMode: .fit)
+                    .shadow(color: .black.opacity(0.35), radius: 14, y: 6)
+                    .padding(.top, 100)
+                    .padding(.bottom, Self.sheetOverlap + 64)
+                    .padding(.horizontal, AFSpacing.md)
+            }
     }
 
     private var infoSheet: some View {
@@ -333,6 +324,8 @@ private struct ArtworkViewer: View {
     @Binding var selection: Int
     @State private var mode: ArtworkViewMode
 
+    @State private var imageAspect: CGFloat?
+
     init(urls: [URL], title: String, dimensions: ArtworkDimensions, selection: Binding<Int>, initialMode: ArtworkViewMode) {
         self.urls = urls
         self.title = title
@@ -359,7 +352,7 @@ private struct ArtworkViewer: View {
                     .background(Color.black)
                 case .frame:
                     GeometryReader { proxy in
-                        FramedArtwork(url: currentURL, aspectRatio: dimensions.aspectRatio, matWidth: 28, frameWidth: 10)
+                        FramedArtwork(url: currentURL, aspectRatio: imageAspect ?? dimensions.aspectRatio, matWidth: 28, frameWidth: 10)
                             .padding(.horizontal, AFSpacing.xl)
                             .padding(.top, 90)
                             .padding(.bottom, 110)
@@ -367,7 +360,7 @@ private struct ArtworkViewer: View {
                     }
                     .background(WallBackground())
                 case .wall:
-                    WallPreview(url: currentURL, dimensions: dimensions)
+                    WallPreview(url: currentURL, dimensions: dimensions, imageAspect: imageAspect)
                 case .ar:
                     ARPaintingView(imageURL: currentURL, dimensions: dimensions)
                 }
@@ -392,6 +385,10 @@ private struct ArtworkViewer: View {
                 .buttonBorderShape(.circle)
                 .secondaryAction()
                 .padding(AFSpacing.md)
+        }
+        .task(id: currentURL) {
+            guard let url = currentURL else { imageAspect = nil; return }
+            imageAspect = await Task.detached { ImageProcessor.aspectRatio(url) }.value
         }
         .environment(\.colorScheme, .dark)
         .accessibilityLabel("Full screen view of \(title)")
@@ -427,6 +424,7 @@ private struct FramedArtwork: View {
 private struct WallPreview: View {
     let url: URL?
     let dimensions: ArtworkDimensions
+    let imageAspect: CGFloat?
 
     private static let wallWidthCM: CGFloat = 320
     private static let benchWidthCM: CGFloat = 160
@@ -434,7 +432,7 @@ private struct WallPreview: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let art = dimensions.sizeInCentimeters
+            let art = dimensions.sizeInCentimeters(matching: imageAspect)
             let floorHeight = proxy.size.height * 0.2
             let wallHeight = proxy.size.height - floorHeight
             // Oversized work shrinks the whole room so the bench still shows true relative scale.
@@ -448,7 +446,7 @@ private struct WallPreview: View {
                     VStack(spacing: AFSpacing.sm) {
                         Spacer(minLength: 96)
                         FramedArtwork(url: url,
-                                      aspectRatio: dimensions.aspectRatio,
+                                      aspectRatio: art.width / art.height,
                                       matWidth: 0,
                                       frameWidth: max(2, 2.5 * scale))
                             .frame(width: art.width * scale + 2 * max(2, 2.5 * scale))

@@ -6,7 +6,7 @@ struct ARPaintingView: View {
     let imageURL: URL?
     let dimensions: ArtworkDimensions
 
-    @State private var message = "Point at a wall to begin"
+    @State private var message = "Point at a wall, then tap to hang"
     @State private var isPlaced = false
 
     var body: some View {
@@ -20,7 +20,8 @@ struct ARPaintingView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .background(.ultraThinMaterial, in: Capsule())
-                    .padding(.bottom, 32)
+                    .padding(.bottom, 88)
+                    .allowsHitTesting(false)
             }
         } else {
             ContentUnavailableView(
@@ -55,6 +56,7 @@ private struct ARContainer: UIViewRepresentable {
         coaching.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         coaching.goal = .verticalPlane
         coaching.activatesAutomatically = true
+        coaching.isUserInteractionEnabled = false
         arView.addSubview(coaching)
 
         arView.addGestureRecognizer(
@@ -77,6 +79,8 @@ private struct ARContainer: UIViewRepresentable {
         weak var arView: ARView?
         var texture: TextureResource?
         var currentAnchor: AnchorEntity?
+        var imageAspect: CGFloat?
+        var placedTransform: simd_float4x4?
 
         init(_ parent: ARContainer) { self.parent = parent }
 
@@ -89,6 +93,8 @@ private struct ARContainer: UIViewRepresentable {
                     let tex = try? await TextureResource.generate(from: cg, options: .init(semantic: .color))
                 else { return }
                 texture = tex
+                imageAspect = CGFloat(cg.width) / CGFloat(cg.height)
+                if let placedTransform { placeArtwork(at: placedTransform) }
             }
         }
 
@@ -99,14 +105,27 @@ private struct ARContainer: UIViewRepresentable {
                 parent.message = "No wall detected here — try a different spot"
                 return
             }
-            placeArtwork(at: hit.worldTransform)
+            placeArtwork(at: wallTransform(from: hit.worldTransform, cameraPosition: arView.cameraTransform.translation))
+        }
+
+        // Plane hits use +Y as the wall normal with an arbitrary roll, so rebuild the basis to keep the art level.
+        private func wallTransform(from hit: simd_float4x4, cameraPosition: SIMD3<Float>) -> simd_float4x4 {
+            let position = simd_make_float3(hit.columns.3)
+            var normal = simd_make_float3(hit.columns.1)
+            normal.y = 0
+            normal = simd_normalize(normal)
+            if simd_dot(normal, cameraPosition - position) < 0 { normal = -normal }
+            let up = SIMD3<Float>(0, 1, 0)
+            let right = simd_normalize(simd_cross(up, normal))
+            return simd_float4x4(SIMD4(right, 0), SIMD4(normal, 0), SIMD4(-up, 0), hit.columns.3)
         }
 
         func placeArtwork(at transform: simd_float4x4) {
             guard let arView else { return }
             currentAnchor?.removeFromParent()
+            placedTransform = transform
 
-            let cm = parent.dimensions.sizeInCentimeters
+            let cm = parent.dimensions.sizeInCentimeters(matching: imageAspect)
             let w = Float(cm.width) / 100
             let h = Float(cm.height) / 100
             let border: Float = 0.012
@@ -123,15 +142,12 @@ private struct ARContainer: UIViewRepresentable {
                 mat.metallic = 0
                 canvasEnt.model?.materials = [mat]
             }
-            canvasEnt.position.z = 0.002 // slightly in front of frame
+            frameEnt.position.y = 0.003
+            canvasEnt.position.y = 0.005
 
             let group = Entity()
             group.addChild(frameEnt)
             group.addChild(canvasEnt)
-
-            // generatePlane(width:depth:) lies in XZ, normal +Y.
-            // Rotate π/2 around X → plane stands upright in XY, normal +Z facing viewer.
-            group.transform.rotation = simd_quatf(angle: .pi / 2, axis: [1, 0, 0])
 
             let anchor = AnchorEntity(world: transform)
             anchor.addChild(group)

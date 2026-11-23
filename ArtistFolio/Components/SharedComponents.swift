@@ -130,9 +130,9 @@ struct ArtworkCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Color.clear
+            Color(uiColor: .secondarySystemBackground)
                 .aspectRatio(0.85, contentMode: .fit)
-                .overlay(CloudImage(url: artwork.thumbnailURL, maxPixels: 600))
+                .overlay(CloudImage(url: artwork.thumbnailURL, maxPixels: 600, contentMode: .fit))
                 .clipShape(RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
                 .overlay(alignment: .topLeading) {
                     if artwork.status != .available {

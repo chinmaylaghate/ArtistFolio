@@ -78,6 +78,15 @@ struct ArtworkDimensions: Hashable {
         return CGSize(width: width * factor, height: height * factor)
     }
 
+    func sizeInCentimeters(matching imageAspect: CGFloat?) -> CGSize {
+        let size = sizeInCentimeters
+        guard let imageAspect, imageAspect > 0 else { return size }
+        let longest = max(size.width, size.height)
+        return imageAspect >= 1
+            ? CGSize(width: longest, height: longest / imageAspect)
+            : CGSize(width: longest * imageAspect, height: longest)
+    }
+
     var displayString: String {
         "\(Self.format(width)) x \(Self.format(height)) \(unit)"
     }

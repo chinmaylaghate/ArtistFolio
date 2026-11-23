@@ -340,9 +340,9 @@ private struct JustListedSection: View {
                 LazyHStack(spacing: AFSpacing.sm) {
                     ForEach(artworks) { artwork in
                         NavigationLink(value: artwork) {
-                            Color.clear
+                            Color(uiColor: .secondarySystemBackground)
                                 .frame(width: 140, height: 168)
-                                .overlay(CloudImage(url: artwork.thumbnailURL, maxPixels: 500))
+                                .overlay(CloudImage(url: artwork.thumbnailURL, maxPixels: 500, contentMode: .fit))
                                 .overlay(LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom))
                                 .overlay(alignment: .bottom) {
                                     VStack(spacing: 1) {
