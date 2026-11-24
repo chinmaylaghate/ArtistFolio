@@ -83,7 +83,7 @@ art,paintings,gallery,artists,collect,artwork,discover,original,buy art,wall art
 | **Marketing URL** | https://chinmaylaghate.github.io/ArtistFolio/ *(optional)* |
 | **Privacy Policy URL** | https://chinmaylaghate.github.io/ArtistFolio/privacy.html |
 
-> ✅ All three URLs confirmed live as of 2026-11-22.
+> ✅ All three URLs confirmed live as of 2026-11-23.
 
 ---
 
@@ -107,31 +107,28 @@ art,paintings,gallery,artists,collect,artwork,discover,original,buy art,wall art
 
 ## Age Rating
 
-Fill out the **Age Rating** questionnaire in App Store Connect with these answers:
+Completed in App Store Connect. Calculated rating: **13+**.
 
 | Question | Answer |
 |---|---|
-| Cartoon or Fantasy Violence | None |
-| Realistic Violence | None |
-| Sexual Content or Nudity | None |
-| Profanity or Crude Humor | None |
-| Mature/Suggestive Themes | None |
-| Simulated Gambling | None |
-| Horror/Fear Themes | None |
-| Medical/Treatment Information | None |
-| Alcohol, Tobacco, or Drug Use | None |
-| **Contests** | No |
-| **User-Generated Content** | **Yes** *(artists publish artwork)* |
-| **Unrestricted Web Access** | No |
-
-**Expected Rating: 4+** (UGC triggers an advisory, but content is artwork only)
+| Parental controls, age assurance | No |
+| Unrestricted web access | No |
+| User-generated content | Yes |
+| Social media | Yes (not disabled for under 13) |
+| Messaging and chat | No |
+| Shared location, advertising | No |
+| Profanity, horror, drugs, dating | None / No |
+| Medical or wellness | None / No |
+| Mature themes, sexual content or nudity | None |
+| Violence, weapons | None |
+| Simulated gambling, contests, gambling, loot boxes | None / No |
 
 ---
 
 ## App Review Information
 
 ### Sign-In Required?
-No — reviewers can browse as a guest without an iCloud account.
+No. Reviewers use the in-app demo mode (Explore Demo).
 
 ### Notes for App Review
 
@@ -156,36 +153,34 @@ Not required. Use the in-app demonstration mode (Explore Demo).
 
 ## App Store Screenshots
 
-See `AppStore/screenshots-spec.md` for required sizes, content, and production notes.
+See `SUBMISSION.md` → Store assets for the exact files.
 
-Required sets:
-- **6.7" iPhone** (iPhone 16 Plus / 15 Plus) — 1290 × 2796 px — **REQUIRED**
-- **5.5" iPhone** (iPhone 8 Plus) — 1242 × 2208 px — required only if supporting iOS below 11 *(skip — min iOS 17)*
+| Slot | Size | Files |
+|---|---|---|
+| iPhone 6.1" / 6.3" | 1206 × 2622 px | `Store_Assets/06_Screenshots_Portrait_1206x2622/` (5) |
+| iPad 13" | 2064 × 2752 px | `screenshots-ipad-13in/` (4) |
+| Search Results | 1920 × 1280 px | `Store_Assets/02_Search_Results/` (1) |
+| Header | 3840 × 1646 px | `Store_Assets/01_Header/ArtistFolio_Header_LogoOnly_3840x1646.png` |
 
-Optional but strongly recommended:
-- **6.9" iPhone** (iPhone 16 Pro Max) — 1320 × 2868 px
-- **13" iPad** — 2064 × 2752 px — **REQUIRED** (see `AppStore/screenshots-ipad-13in/`)
-
-Minimum: **3 screenshots**. Recommended: **6–8**.
+No app preview videos.
 
 ---
 
 ## In-App Purchases
 
-None — declare "No" in App Store Connect.
+None. Price is Free.
 
 ---
 
 ## Pre-Submission Checklist
 
-- [ ] Archive built in Xcode with **Release** scheme, **Any iOS Device** destination
-- [ ] Upload via **Xcode Organizer → Distribute → App Store Connect**
-- [ ] Screenshots uploaded (see spec)
-- [ ] Privacy Policy URL live and accessible
-- [ ] Support URL live (even a mailto: works)
-- [ ] CloudKit container `iCloud.com.artistfolio.app` created in [developer.apple.com](https://developer.apple.com) → Certificates → iCloud Containers
-- [ ] CloudKit schema deployed to Production (not just Development) via CloudKit Console
-- [ ] All metadata fields filled in App Store Connect
-- [ ] Age Rating questionnaire completed
-- [ ] App Review notes added
-- [ ] Content rights confirmed (you own all artwork used in screenshots)
+- [x] Build 8 archived in Release and uploaded
+- [x] Build 8 attached to version 1.0.0
+- [x] Privacy Policy and Support URLs live
+- [x] Category, Content Rights, Age Rating, App Privacy, Pricing (Free) and Availability (148 countries, EU excluded) set
+- [x] Description and App Review notes updated
+- [x] iPad 13" screenshots, replacement iPhone screenshot 4 and Search Results asset uploaded
+- [x] Add for Review
+- [ ] Submit for Review
+- [ ] CloudKit schema confirmed in Production
+- [ ] Seed artworks published from a TestFlight build

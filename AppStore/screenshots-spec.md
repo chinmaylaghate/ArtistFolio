@@ -4,11 +4,11 @@
 
 | Device | Resolution | Required? |
 |---|---|---|
-| iPhone 6.7" (iPhone 16 Plus / 15 Plus) | 1290 × 2796 px | ✅ Required |
-| iPhone 6.9" (iPhone 16 Pro Max) | 1320 × 2868 px | Recommended |
-| iPad Pro 12.9" (M4) | 2064 × 2752 px | Only if iPad layout differs |
+| iPhone 6.1" / 6.3" | 1206 × 2622 px | ✅ Required (set used in App Store Connect) |
+| iPad 13" | 2064 × 2752 px | ✅ Required, because the app supports iPad |
+| iPhone 6.7" | 1290 × 2796 px | Not used. App Store Connect rejected this size for the current slot |
 
-> Apple requires at least the **6.7"** set. If you only shoot one size, shoot 6.7".
+> Current upload sets are listed in `SUBMISSION.md`. Never show features the app lacks, such as chat or messaging.
 > Minimum 3, maximum 10 per device.
 
 ---
@@ -86,6 +86,6 @@ Export at 1080 × 1920 (or 886 × 1920 for older format), H.264, ≤ 500 MB.
 - [ ] Artist profile — grid + follow
 - [ ] Studio — artist's listings
 - [ ] Search or filter view
-- [ ] All shots at 1290 × 2796 (or cropped to it)
+- [ ] iPhone shots at 1206 × 2622 and iPad shots at 2064 × 2752
 - [ ] No personal data, real email addresses, or placeholder content visible
 - [ ] Status bar shows 9:41 AM, full signal, full battery
