@@ -111,6 +111,7 @@ private struct OnboardingPagesView: View {
 private struct LandingView: View {
     @EnvironmentObject var appState: AppState
     @Binding var path: [AuthRoute]
+    @State private var showDemoOptions = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: AFSpacing.md) {
@@ -142,10 +143,31 @@ private struct LandingView: View {
                 }
                 .secondaryAction()
 
-                Button("Browse as Guest") { appState.enterApp(createProfile: false) }
-                    .font(.subheadline)
-                    .foregroundStyle(.white)
-                    .frame(minHeight: 44)
+                HStack(spacing: AFSpacing.lg) {
+                    Button("Browse as Guest") { appState.enterApp(createProfile: false) }
+                    Button("Explore Demo") { withAnimation(.smooth) { showDemoOptions.toggle() } }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 44)
+
+                if showDemoOptions {
+                    Text("Try every feature with sample content. No iCloud account is needed, and nothing is saved.")
+                        .font(.footnote)
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    HStack(spacing: AFSpacing.sm) {
+                        Button { Task { await appState.startDemo(as: .artist) } } label: {
+                            Text("Artist Demo").frame(maxWidth: .infinity)
+                        }
+                        .secondaryAction()
+                        Button { Task { await appState.startDemo(as: .collector) } } label: {
+                            Text("Collector Demo").frame(maxWidth: .infinity)
+                        }
+                        .secondaryAction()
+                    }
+                }
             }
         }
         .foregroundStyle(.white)

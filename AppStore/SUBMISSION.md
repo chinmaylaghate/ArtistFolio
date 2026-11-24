@@ -4,13 +4,34 @@ Updated 2026-11-23. Nothing has been changed in App Store Connect or CloudKit Pr
 
 **Status: repo work is done. Five steps need your Apple account or your input (section 1).**
 
+## Beta App Review: Guideline 2.1(a) response
+
+ArtistFolio has no username or password because accounts use iCloud. Build 8 adds the demonstration mode Apple accepts instead.
+
+1. Upload build 8 and select it for the external TestFlight group.
+2. In TestFlight → Test Information → Beta App Review Information, leave **Sign-in required unchecked**.
+3. Paste the reply below into **Review Notes**, then send the same text as your reply in App Store Connect.
+
+```
+Thank you for the review. ArtistFolio uses the device's iCloud account, so it has no username or password to provide. Build 8 adds a demonstration mode that requires no account or iCloud sign-in.
+
+To access it:
+1. Launch the app and tap Skip.
+2. Tap Explore Demo at the bottom of the screen.
+3. Tap Artist Demo or Collector Demo.
+
+Artist Demo includes Home, Search, Studio, publishing, editing listings, sharing, saved art, following, reporting, blocking, and account deletion. Collector Demo includes browsing, saved art, following, contacting artists, reporting, and blocking.
+
+Demo mode uses sample content stored only in memory and does not write to iCloud. To leave it, open Profile and tap Exit Demo. To try AR, open an artwork on a physical device and tap View on Wall.
+```
+
 ## 1. Remaining steps, in order
 
 1. **Publish the website.** GitHub Pages serves `docs/` from `main`, so the new email and privacy policy are not live until `social-sharing` is merged and pushed.
 2. **Check CloudKit Production.** Sign in at [CloudKit Console](https://icloud.developer.apple.com/dashboard/), open `iCloud.com.artistfolio.app`, and confirm Production has the record types Profile, Artwork, Report, SavedArtwork, FollowedArtist and BlockedArtist. If not, use **Deploy Schema Changes**.
-3. **Upload build 7.** In Xcode Organizer, select ArtistFolio 1.0.0 (7), then Distribute App → App Store Connect.
-4. **Publish the seed artworks.** Complete `Production_Seed/LISTINGS.csv`, move `Production_Seed/selected/` to your iPhone, install build 7 from TestFlight, create your artist profile, and publish them in Studio. TestFlight writes to Production.
-5. **Fill in App Store Connect** from sections 2 and 3, attach build 7, and submit.
+3. **Upload build 8.** In Xcode Organizer, select ArtistFolio 1.0.0 (8), then Distribute App → App Store Connect.
+4. **Publish the seed artworks.** Complete `Production_Seed/LISTINGS.csv`, move `Production_Seed/selected/` to your iPhone, install build 8 from TestFlight, create your artist profile, and publish them in Studio. TestFlight writes to Production.
+5. **Fill in App Store Connect** from sections 2 and 3, attach build 8, and submit.
 
 Test on TestFlight before submitting: guest browsing, sign-up, publish, report, block, AR, share, and account deletion.
 
@@ -91,7 +112,7 @@ No ads. No trackers.
 ```
 ArtistFolio is an art discovery and portfolio app. Guests can browse artwork without signing in.
 
-ACCOUNTS: The app uses CloudKit, so no demo credentials are required. To test profiles, saving, following, reporting, blocking, publishing, and account deletion, sign in to iCloud on the device and create a profile in the app.
+DEMO MODE: No account is required. Launch the app, tap Skip, tap Explore Demo, then choose Artist Demo or Collector Demo to access all features with sample content. To leave, open Profile and tap Exit Demo.
 
 PAYMENTS: The app sells no digital goods and processes no payments. Listings are physical artworks. Buyers contact artists directly and arrange payment and delivery outside the app.
 

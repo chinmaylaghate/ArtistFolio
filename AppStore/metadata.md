@@ -92,7 +92,7 @@ art,paintings,gallery,artists,collect,artwork,discover,original,buy art,wall art
 | Field | Value |
 |---|---|
 | **Version** | 1.0.0 |
-| **Build** | 7 |
+| **Build** | 8 |
 | **What's New** | *(leave blank for 1.0 — first release has no "what's new")* |
 
 ---
@@ -138,7 +138,7 @@ No — reviewers can browse as a guest without an iCloud account.
 ```
 ArtistFolio is an art discovery and portfolio app. Guests can browse artwork without signing in.
 
-ACCOUNTS: The app uses CloudKit, so no demo credentials are required. To test profiles, saving, following, reporting, blocking, publishing, and account deletion, sign in to iCloud on the device and create a profile in the app.
+DEMO MODE: No account is required. Launch the app, tap Skip, tap Explore Demo, then choose Artist Demo or Collector Demo to access all features with sample content. To leave, open Profile and tap Exit Demo.
 
 PAYMENTS: The app sells no digital goods and processes no payments. Listings are physical artworks. Buyers contact artists directly and arrange payment and delivery outside the app.
 
@@ -150,7 +150,7 @@ AR: Open an artwork and tap View on Wall. This requires a physical device with A
 ```
 
 ### Demo Account
-Not required — guest browsing is fully functional.
+Not required. Use the in-app demonstration mode (Explore Demo).
 
 ---
 

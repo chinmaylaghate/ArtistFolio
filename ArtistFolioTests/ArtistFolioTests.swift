@@ -159,6 +159,36 @@ final class FirstTimeAccountTests: XCTestCase {
         XCTAssertEqual(result, .noICloud)
         XCTAssertTrue(state.showICloudPrompt)
     }
+
+    func testDemoUnlocksFeaturesWithoutPersistingEntry() async {
+        let key = "hasEnteredApp"
+        let saved = UserDefaults.standard.object(forKey: key)
+        defer { UserDefaults.standard.set(saved, forKey: key) }
+        UserDefaults.standard.set(false, forKey: key)
+
+        let live = DemoBackend(mode: "guest")
+        let state = AppState(backend: live)
+        await state.startDemo(as: .artist)
+        XCTAssertTrue(state.isDemoMode)
+        XCTAssertTrue(state.isArtist)
+        XCTAssertTrue(state.hasEnteredApp)
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: key))
+
+        await state.exitDemo()
+        XCTAssertFalse(state.isDemoMode)
+        XCTAssertTrue(state.backend === live)
+        XCTAssertNil(state.profile)
+        XCTAssertFalse(state.hasEnteredApp)
+    }
+
+    func testDeletingDemoAccountExitsDemo() async {
+        let state = AppState(backend: DemoBackend(mode: "guest"))
+        await state.startDemo(as: .collector)
+        let deleted = await state.deleteAccount()
+        XCTAssertTrue(deleted)
+        XCTAssertFalse(state.isDemoMode)
+        XCTAssertNil(state.profile)
+    }
 }
 
 final class ArtCollectionTests: XCTestCase {

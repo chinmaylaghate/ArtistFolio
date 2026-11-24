@@ -85,6 +85,16 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AFSpacing.lg) {
+                if appState.isDemoMode {
+                    Label("Demo Mode: sample artists and artworks. Exit from Profile.", systemImage: "sparkles")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color.afPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(AFSpacing.sm)
+                        .background(Color.afPrimary.opacity(0.1), in: RoundedRectangle(cornerRadius: AFRadius.lg, style: .continuous))
+                        .padding(.horizontal, AFSpacing.md)
+                }
+
                 if let hero = heroArtwork, dismissedFeaturedCollectionID != ArtCollection.featured.id {
                     FeaturedCollectionCard(artwork: hero) {
                         withAnimation(.smooth) { dismissedFeaturedCollectionID = ArtCollection.featured.id }

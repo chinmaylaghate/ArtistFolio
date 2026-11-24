@@ -9,6 +9,15 @@ struct ProfileView: View {
 
     var body: some View {
         List {
+            if appState.isDemoMode {
+                Section {
+                    Button("Exit Demo", systemImage: "rectangle.portrait.and.arrow.right") {
+                        Task { await appState.exitDemo() }
+                    }
+                } footer: {
+                    Text("You're viewing sample artists and artworks. Changes are not saved.")
+                }
+            }
             if let profile = appState.profile {
                 Section { header(profile) }
             } else if appState.isProfileUnavailable {

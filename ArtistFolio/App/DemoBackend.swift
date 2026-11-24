@@ -1,4 +1,3 @@
-#if DEBUG
 import CloudKit
 import SwiftUI
 
@@ -187,4 +186,3 @@ final class DemoBackend: ArtBackend {
         state = UserLibrary()
     }
 }
-#endif

@@ -21,16 +21,23 @@ final class AppState: ObservableObject {
     @Published var showFirstTimeSetup = false
     @Published var alertMessage: String?
     @Published var hasEnteredApp: Bool {
-        didSet { UserDefaults.standard.set(hasEnteredApp, forKey: Self.enteredKey) }
+        didSet {
+            // Demo sessions are in-memory, so relaunching returns to the normal entry flow.
+            if !isDemoMode { UserDefaults.standard.set(hasEnteredApp, forKey: Self.enteredKey) }
+        }
     }
+    @Published private(set) var isDemoMode = false
 
-    let backend: ArtBackend
+    private(set) var backend: ArtBackend
+    private let liveBackend: ArtBackend
     private static let enteredKey = "hasEnteredApp"
     private var accountObserver: NSObjectProtocol?
     private var accountGeneration = 0
 
     init(backend: ArtBackend? = nil) {
-        self.backend = backend ?? BackendFactory.make()
+        let resolved = backend ?? BackendFactory.make()
+        self.backend = resolved
+        liveBackend = resolved
         hasEnteredApp = UserDefaults.standard.bool(forKey: Self.enteredKey)
         accountObserver = NotificationCenter.default.addObserver(
             forName: .CKAccountChanged, object: nil, queue: .main
@@ -120,6 +127,27 @@ final class AppState: ObservableObject {
     func enterApp(createProfile: Bool) {
         withAnimation(.easeInOut(duration: 0.3)) { hasEnteredApp = true }
         if createProfile { beginProfileSetup() }
+    }
+
+    func startDemo(as role: UserRole) async {
+        isDemoMode = true
+        backend = DemoBackend(mode: role.rawValue)
+        selectedTab = .home
+        await reloadSession(resetIdentity: true)
+        refreshContent()
+        withAnimation(.easeInOut(duration: 0.3)) { hasEnteredApp = true }
+    }
+
+    func exitDemo() async {
+        guard isDemoMode else { return }
+        isDemoMode = false
+        backend = liveBackend
+        selectedTab = .home
+        withAnimation(.easeInOut(duration: 0.3)) {
+            hasEnteredApp = UserDefaults.standard.bool(forKey: Self.enteredKey)
+        }
+        await reloadSession(resetIdentity: true)
+        refreshContent()
     }
 
     enum ICloudAccess { case entered, needsProfile, noICloud, unavailable }
@@ -219,6 +247,10 @@ final class AppState: ObservableObject {
     func deleteAccount() async -> Bool {
         do {
             try await backend.deleteAccount()
+            if isDemoMode {
+                await exitDemo()
+                return true
+            }
             library = UserLibrary()
             selectedTab = .home
             await reloadSession(resetIdentity: true)
