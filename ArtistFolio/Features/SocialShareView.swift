@@ -139,8 +139,9 @@ struct SocialShareSheet: View {
     @State private var showActivity = false
     @State private var didFail = false
 
-    private var isArtwork: Bool {
-        if case .artwork = subject { return true }
+    /// Price-on-request pieces have no price to show, so the toggle is hidden.
+    private var canShowPrice: Bool {
+        if case .artwork(let artwork, _) = subject { return !artwork.priceOnRequest }
         return false
     }
 
@@ -159,7 +160,7 @@ struct SocialShareSheet: View {
                 preview
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                if isArtwork {
+                if canShowPrice {
                     Toggle("Show price", isOn: $includePrice)
                 }
 
@@ -349,7 +350,7 @@ private struct ArtworkShareCard: View {
                         .padding(.horizontal, 24)
                         .padding(.vertical, 8)
                         .background(statusColor, in: Capsule())
-                    if includePrice {
+                    if includePrice && !artwork.priceOnRequest {
                         Text(artwork.priceText).font(.system(size: 38, weight: .semibold))
                     }
                 }

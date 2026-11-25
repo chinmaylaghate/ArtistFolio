@@ -1,8 +1,8 @@
 # ArtistFolio 1.0.0: App Review Submission Plan
 
-Updated 2026-11-23.
+Updated 2026-11-24.
 
-**Status: version 1.0.0 (build 8) is added for review and sits in a draft submission. It is not submitted yet.**
+**Status: version 1.0.0 (build 8) is approved and live on the App Store.** The next version is 1.1.0; see `UPDATE_PLAN.md`.
 
 ## 1. Remaining steps, in order
 
@@ -14,7 +14,7 @@ Updated 2026-11-23.
    | `iPhone63_04_follow-and-contact-artists.png` | iPhone tab → replace the 4th screenshot ("Follow and talk to artists") |
    | `SearchResults_1920x1280.png` | Header and Search Results → Search Results → replace the "Talk to the artist" asset |
 
-2. **Done:** Add for Review. **Still to do:** click **Submit for Review** in the Draft Submission panel.
+2. **Done:** submitted for review, approved and released (build 8).
 3. **Before real users arrive:** confirm CloudKit Production has the record types Profile, Artwork, Report, SavedArtwork, FollowedArtist and BlockedArtist in [CloudKit Console](https://icloud.developer.apple.com/dashboard/). Then publish the seed artworks: complete `Production_Seed/LISTINGS.csv`, install build 8 from TestFlight, create your artist profile, and publish `Production_Seed/selected/` in Studio.
 
 The version is set to **release automatically after approval**. Switch to manual release on the version page if CloudKit Production or the seed artworks are not ready.
@@ -28,7 +28,7 @@ The version is set to **release automatically after approval**. Switch to manual
 | Content Rights | Contains third-party content, rights held |
 | Age rating | 13+ (UGC Yes, social media Yes, messaging No, web access No, age assurance No, nudity None) |
 | App Privacy | Published (table below) |
-| Privacy Policy URL | `https://chinmaylaghate.github.io/ArtistFolio/privacy.html` |
+| Privacy Policy URL | `https://artistfolioapp.com/privacy.html` |
 | Price | Free (USD 0.00) |
 | Availability | 148 countries or regions. The 27 EU countries are excluded until EU trader status is completed |
 | Description, review notes | Updated to section 3 |

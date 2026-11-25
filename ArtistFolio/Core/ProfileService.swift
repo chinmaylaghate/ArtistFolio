@@ -15,6 +15,8 @@ enum ProfileMapper {
             website: record["website"] as? String ?? "",
             instagramHandle: record["instagramHandle"] as? String ?? "",
             contactEmail: record["contactEmail"] as? String ?? "",
+            phone: record["phone"] as? String ?? "",
+            whatsapp: record["whatsapp"] as? String ?? "",
             acceptsCommissions: (record["acceptsCommissions"] as? Int64 ?? 0) == 1,
             avatarURL: avatarURL
         )
@@ -28,6 +30,8 @@ enum ProfileMapper {
         record["website"] = profile.website
         record["instagramHandle"] = profile.instagramHandle
         record["contactEmail"] = profile.contactEmail
+        record["phone"] = profile.phone
+        record["whatsapp"] = profile.whatsapp
         record["acceptsCommissions"] = (profile.acceptsCommissions ? 1 : 0) as Int64
         record["searchTokens"] = SearchTokens.make(from: [profile.displayName, profile.location])
     }

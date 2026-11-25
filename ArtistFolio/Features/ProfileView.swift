@@ -195,8 +195,11 @@ struct ArtistProfileView: View {
     @State private var showReport = false
     @State private var showBlockConfirm = false
     @State private var showShare = false
+    @State private var showCommissionContact = false
+    @State private var selectedSeries: String?
 
     private var isSelf: Bool { artistId == appState.currentUserID }
+    private var summary: ArtistSummary { ArtistSummary(artworks: artworks) }
 
     var body: some View {
         Group {
@@ -270,20 +273,19 @@ struct ArtistProfileView: View {
                 if !profile.bio.isEmpty {
                     Text(profile.bio).font(.body).foregroundStyle(Color.afTextSecondary).multilineTextAlignment(.center)
                 }
-                if profile.acceptsCommissions {
-                    Label("Open to commissions", systemImage: "paintbrush")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.tint)
-                }
             }
             .frame(maxWidth: .infinity)
+
+            if summary.showsCard {
+                summaryCard
+            }
 
             if !isSelf {
                 followButton
             }
 
             if !profile.contactOptions.isEmpty {
-                HStack(spacing: AFSpacing.xs) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: AFSpacing.xs), count: min(profile.contactOptions.count, 3)), spacing: AFSpacing.xs) {
                     ForEach(profile.contactOptions) { option in
                         Link(destination: option.url) {
                             Label(option.kind.rawValue, systemImage: option.icon)
@@ -298,14 +300,119 @@ struct ArtistProfileView: View {
                 }
             }
 
+            if profile.acceptsCommissions {
+                commissionsCard(profile)
+            }
+
+            if !summary.topMediums.isEmpty {
+                FlowLayout(spacing: AFSpacing.xs) {
+                    ForEach(summary.topMediums) { ListingChip(text: $0.rawValue) }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Works in \(summary.topMediums.map(\.rawValue).joined(separator: ", "))")
+            }
+
             Text("Artworks").font(.title2.bold())
             if artworks.isEmpty {
                 EmptyStateView(icon: "photo.artframe", title: "No Artworks Yet", subtitle: "Check back soon.")
             } else {
-                ArtworkGrid(artworks: artworks)
+                if seriesNames.count > 0 {
+                    seriesFilter
+                }
+                ArtworkGrid(artworks: shownArtworks)
             }
         }
         .padding(AFSpacing.md)
+    }
+
+    /// Series names used by this artist, most pieces first.
+    private var seriesNames: [String] {
+        var counts: [String: Int] = [:]
+        for artwork in artworks {
+            let name = artwork.series.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !name.isEmpty { counts[name, default: 0] += 1 }
+        }
+        return counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.map(\.key)
+    }
+
+    private var shownArtworks: [Artwork] {
+        guard let selectedSeries else { return artworks }
+        return artworks.filter { $0.series.trimmingCharacters(in: .whitespacesAndNewlines) == selectedSeries }
+    }
+
+    private var seriesFilter: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AFSpacing.xs) {
+                seriesChip("All", isSelected: selectedSeries == nil) { selectedSeries = nil }
+                ForEach(seriesNames, id: \.self) { name in
+                    seriesChip(name, isSelected: selectedSeries == name) { selectedSeries = name }
+                }
+            }
+        }
+        .scrollClipDisabled()
+    }
+
+    private func seriesChip(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            ListingChip(text: title, isProminent: isSelected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var summaryCard: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(summary.stats.enumerated()), id: \.element.id) { index, stat in
+                if index > 0 {
+                    Divider().frame(height: 32)
+                }
+                VStack(spacing: 2) {
+                    Text(stat.value).font(.title3.weight(.semibold)).monospacedDigit()
+                    Text(stat.label).font(.footnote).foregroundStyle(Color.afTextSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(.vertical, 14)
+        .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+    }
+
+    private func commissionsCard(_ profile: UserProfile) -> some View {
+        HStack(spacing: AFSpacing.sm) {
+            Image(systemName: "paintbrush.pointed")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Color.afPrimary)
+                .frame(width: 36, height: 36)
+                .background(Color.afPrimary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Open for commissions").font(.subheadline.weight(.semibold))
+                Text(commissionLine)
+                    .font(.footnote)
+                    .foregroundStyle(Color.afTextSecondary)
+            }
+            Spacer(minLength: 0)
+            if !isSelf, !profile.contactOptions.isEmpty {
+                Button("Ask") { showCommissionContact = true }
+                    .font(.subheadline.weight(.semibold))
+                    .afGlassProminentButton()
+                    .tint(Color.afPrimary)
+                    .accessibilityLabel("Ask about a commission")
+                    .confirmationDialog("Ask \(BuyerMessage.firstName(profile.displayName)) about a commission", isPresented: $showCommissionContact, titleVisibility: .visible) {
+                        ForEach(profile.contactOptions) { option in
+                            Link(option.kind.rawValue, destination: option.url)
+                        }
+                    }
+            }
+        }
+        .padding(14)
+        .background(Color.afPrimary.opacity(0.07), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+    }
+
+    private var commissionLine: String {
+        let mediums = summary.topMediums.prefix(2).map { $0.rawValue.lowercased() }
+        return mediums.isEmpty ? "Custom pieces on request" : "Custom pieces in \(mediums.joined(separator: " and "))"
     }
 
     @ViewBuilder

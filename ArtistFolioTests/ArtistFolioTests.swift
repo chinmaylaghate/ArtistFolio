@@ -354,3 +354,247 @@ final class ShareFormatterTests: XCTestCase {
         XCTAssertEqual(ShareFormatter.caption("Caption", for: .message), "Caption")
     }
 }
+
+final class PriceOnRequestTests: XCTestCase {
+    private func artwork(price: Double, onRequest: Bool = false) -> Artwork {
+        var art = Artwork(id: UUID().uuidString, artistId: "owner", title: "Amber Reflections", details: "", price: price, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 60, height: 90, unit: "cm"), year: 2026)
+        art.priceOnRequest = onRequest
+        return art
+    }
+
+    func testPriceOnRequestRoundTripsAndStoresZero() throws {
+        let record = CKRecord(recordType: "Artwork", recordID: CKRecord.ID(recordName: "a1"))
+        ArtworkMapper.apply(artwork(price: 900, onRequest: true), to: record)
+        XCTAssertEqual(record["price"] as? Double, 0)
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "owner", thumbnailURL: nil))
+        XCTAssertTrue(mapped.priceOnRequest)
+        XCTAssertEqual(mapped.priceText, "Price on request")
+    }
+
+    func testRecordsWithoutTheFieldArePriced() throws {
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(artwork(price: 450), to: record)
+        record["priceOnRequest"] = nil
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "owner", thumbnailURL: nil))
+        XCTAssertFalse(mapped.priceOnRequest)
+        XCTAssertEqual(mapped.priceText, "$450")
+    }
+
+    func testPriceLimitsExcludePriceOnRequest() {
+        var filters = ArtworkFilters()
+        XCTAssertTrue(filters.matchesPrice(artwork(price: 0, onRequest: true)))
+        filters.maxPrice = 1000
+        XCTAssertFalse(filters.matchesPrice(artwork(price: 0, onRequest: true)))
+        XCTAssertTrue(filters.matchesPrice(artwork(price: 800)))
+        XCTAssertTrue(ArtworkMapper.predicate(for: filters).predicateFormat.contains("price > 0"))
+    }
+
+    func testPriceSortPutsPriceOnRequestLast() {
+        let onRequest = artwork(price: 0, onRequest: true)
+        let cheap = artwork(price: 100)
+        let dear = artwork(price: 900)
+        var filters = ArtworkFilters()
+        filters.sortBy = .priceAsc
+        XCTAssertEqual(filters.ordered([onRequest, cheap, dear]).map(\.id), [cheap.id, dear.id, onRequest.id])
+        filters.sortBy = .newest
+        XCTAssertEqual(filters.ordered([onRequest, cheap]).map(\.id), [onRequest.id, cheap.id])
+    }
+}
+
+final class BuyerMessageTests: XCTestCase {
+    private let art = Artwork(id: "a1", artistId: "owner", title: "Amber Reflections", details: "", price: 1450, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 60, height: 90, unit: "cm"), year: 2026)
+
+    private func decoded(_ url: URL?) throws -> (to: String, subject: String, body: String) {
+        let components = try XCTUnwrap(URLComponents(url: XCTUnwrap(url), resolvingAgainstBaseURL: false))
+        let items = components.queryItems ?? []
+        return (components.path,
+                items.first { $0.name == "subject" }?.value ?? "",
+                items.first { $0.name == "body" }?.value ?? "")
+    }
+
+    func testOfferEmailNamesAmountListingAndNote() throws {
+        let url = BuyerMessage.offerURL(via: .email("sofia@example.com"), artistName: "Sofia Martinez", artwork: art, amount: 1200, note: "Could you ship to Lisbon? A&B")
+        let mail = try decoded(url)
+        XCTAssertEqual(mail.to, "sofia@example.com")
+        XCTAssertEqual(mail.subject, "Offer for \u{201C}Amber Reflections\u{201D}")
+        XCTAssertTrue(mail.body.hasPrefix("Hi Sofia,"))
+        XCTAssertTrue(mail.body.contains("$1,200"))
+        XCTAssertTrue(mail.body.contains("listed on Artist Folio at $1,450"))
+        XCTAssertTrue(mail.body.contains("Lisbon? A&B"), "ampersands and question marks must survive encoding")
+    }
+
+    func testOfferNoteIsCapped() throws {
+        let mail = try decoded(BuyerMessage.offerURL(via: .email("sofia@example.com"), artistName: "Sofia", artwork: art, amount: 100, note: String(repeating: "x", count: 1000)))
+        XCTAssertFalse(mail.body.contains(String(repeating: "x", count: BuyerMessage.maxNoteLength + 1)))
+    }
+
+    func testPriceEnquiryAndInvalidEmail() throws {
+        let mail = try decoded(BuyerMessage.priceEnquiryURL(via: .email("sofia@example.com"), artistName: "Sofia Martinez", artwork: art))
+        XCTAssertTrue(mail.body.contains("Could you tell me the price"))
+        XCTAssertNil(BuyerMessage.priceEnquiryURL(via: .email("not-an-email"), artistName: "Sofia", artwork: art))
+    }
+
+    func testAmountParsing() {
+        XCTAssertEqual(BuyerMessage.amount(from: "$1,200"), 1200)
+        XCTAssertEqual(BuyerMessage.amount(from: " 950.5 "), 950.5)
+        XCTAssertNil(BuyerMessage.amount(from: "0"))
+        XCTAssertNil(BuyerMessage.amount(from: "abc"))
+    }
+}
+
+final class PhoneContactTests: XCTestCase {
+    func testPhoneNumbersNormalize() {
+        XCTAssertEqual(ContactLinks.phoneNumber("+34 612-345 678"), "+34612345678")
+        XCTAssertEqual(ContactLinks.phoneNumber("(415) 555 0100"), "4155550100")
+        XCTAssertNil(ContactLinks.phoneNumber("12345"))
+        XCTAssertNil(ContactLinks.phoneNumber("call me maybe"))
+        XCTAssertNil(ContactLinks.phoneNumber("+1 555 0100 ext 2"))
+    }
+
+    func testCallTextAndWhatsAppLinks() {
+        XCTAssertEqual(ContactLinks.callURL("+34 612 345 678")?.absoluteString, "tel:+34612345678")
+        XCTAssertEqual(ContactLinks.textURL("+34 612 345 678")?.absoluteString, "sms:+34612345678")
+        XCTAssertEqual(ContactLinks.whatsappURL("+34 612 345 678")?.absoluteString, "https://wa.me/34612345678")
+        XCTAssertNil(ContactLinks.whatsappURL("612 345 678"), "WhatsApp needs the country code")
+    }
+
+    func testProfileOffersPhoneOptionsInOrder() {
+        let profile = UserProfile(id: "a", displayName: "Sofia", role: .artist, contactEmail: "sofia@example.com", phone: "+34 612 345 678", whatsapp: "+34 612 345 678")
+        XCTAssertEqual(profile.contactOptions.map(\.kind), [.email, .whatsapp, .call, .text])
+    }
+
+    func testPhoneFieldsRoundTrip() throws {
+        let record = CKRecord(recordType: "Profile")
+        let profile = UserProfile(id: "a", displayName: "Sofia", role: .artist, phone: "+34 612 345 678", whatsapp: "+34 612 345 678")
+        ProfileMapper.apply(profile, to: record)
+        let mapped = try XCTUnwrap(ProfileMapper.profile(from: record, ownerID: "a", avatarURL: nil))
+        XCTAssertEqual(mapped.phone, "+34 612 345 678")
+        XCTAssertEqual(mapped.whatsapp, "+34 612 345 678")
+    }
+
+    func testOfferByWhatsAppCarriesTheMessage() throws {
+        let art = Artwork(id: "a1", artistId: "a", title: "Amber Reflections", details: "", price: 1450, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 60, height: 90, unit: "cm"), year: 2026)
+        let url = try XCTUnwrap(BuyerMessage.offerURL(via: .whatsapp("+34 612 345 678"), artistName: "Sofia Martinez", artwork: art, amount: 1200, note: "Is it framed? A&B"))
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.host, "wa.me")
+        XCTAssertEqual(components.path, "/34612345678")
+        let text = try XCTUnwrap(components.queryItems?.first { $0.name == "text" }?.value)
+        XCTAssertTrue(text.contains("$1,200"))
+        XCTAssertTrue(text.contains("Is it framed? A&B"))
+    }
+
+    func testChannelsSkipInvalidContacts() {
+        let artist = UserProfile(id: "a", displayName: "Sofia", role: .artist, contactEmail: "bad", whatsapp: "+34 612 345 678")
+        XCTAssertEqual(BuyerMessage.channels(for: artist), [.whatsapp("+34 612 345 678")])
+        XCTAssertTrue(BuyerMessage.channels(for: nil).isEmpty)
+    }
+}
+
+final class ArtistSummaryTests: XCTestCase {
+    private func art(_ price: Double, _ status: ArtworkStatus = .available, medium: ArtworkMedium = .acrylic, onRequest: Bool = false) -> Artwork {
+        var art = Artwork(id: UUID().uuidString, artistId: "a", title: "T", details: "", price: price, status: status, medium: medium, style: .abstract, dimensions: ArtworkDimensions(width: 50, height: 50, unit: "cm"), year: 2026)
+        art.priceOnRequest = onRequest
+        return art
+    }
+
+    func testStatsCountWorksSoldAndLowestAvailablePrice() {
+        let summary = ArtistSummary(artworks: [art(1450), art(400), art(300, .sold), art(0, onRequest: true), art(250, .reserved)])
+        XCTAssertEqual(summary.stats.map(\.label), ["Works", "Sold", "From"])
+        XCTAssertEqual(summary.stats.map(\.value), ["5", "1", "$400"])
+        XCTAssertTrue(summary.showsCard)
+    }
+
+    func testZeroStatsAreHiddenAndCardNeedsTwo() {
+        let summary = ArtistSummary(artworks: [art(0, onRequest: true)])
+        XCTAssertEqual(summary.stats.map(\.label), ["Work"])
+        XCTAssertFalse(summary.showsCard)
+        XCTAssertFalse(ArtistSummary(artworks: []).showsCard)
+    }
+
+    func testTopMediumsByCount() {
+        let summary = ArtistSummary(artworks: [art(1, medium: .oilOnCanvas), art(1, medium: .watercolor), art(1, medium: .watercolor), art(1, medium: .drawing), art(1, medium: .acrylic)])
+        XCTAssertEqual(summary.topMediums.first, .watercolor)
+        XCTAssertEqual(summary.topMediums.count, 3)
+    }
+
+    func testCompactPrice() {
+        XCTAssertEqual(ArtistSummary.compactPrice(400), "$400")
+        XCTAssertEqual(ArtistSummary.compactPrice(1200), "$1.2K")
+        XCTAssertEqual(ArtistSummary.compactPrice(3000), "$3K")
+        XCTAssertEqual(ArtistSummary.compactPrice(15500), "$16K")
+    }
+}
+
+final class CareGuideTests: XCTestCase {
+    func testEveryMediumHasFourTips() {
+        for medium in ArtworkMedium.allCases {
+            let tips = CareGuide.tips(for: medium)
+            XCTAssertEqual(tips.count, 4, medium.rawValue)
+            XCTAssertEqual(Set(tips.map(\.text)).count, 4, "duplicate tip for \(medium.rawValue)")
+        }
+    }
+
+    func testCareFieldsRoundTripAndNoteIsCapped() throws {
+        var art = Artwork(id: "a1", artistId: "o", title: "T", details: "", price: 10, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 1, height: 1, unit: "cm"), year: 2026)
+        art.careNote = "  " + String(repeating: "v", count: 400) + "  "
+        art.showCareTips = false
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(art, to: record)
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "o", thumbnailURL: nil))
+        XCTAssertEqual(mapped.careNote.count, CareGuide.maxNoteLength)
+        XCTAssertFalse(mapped.showCareTips)
+    }
+
+    func testOlderListingsShowStandardTips() throws {
+        let art = Artwork(id: "a1", artistId: "o", title: "T", details: "", price: 10, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 1, height: 1, unit: "cm"), year: 2026)
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(art, to: record)
+        record["showCareTips"] = nil
+        record["careNote"] = nil
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "o", thumbnailURL: nil))
+        XCTAssertTrue(mapped.showCareTips)
+        XCTAssertEqual(mapped.careNote, "")
+    }
+}
+
+final class SeriesAndSizeTests: XCTestCase {
+    private func dims(_ w: Double, _ h: Double, _ unit: String = "cm") -> ArtworkDimensions {
+        ArtworkDimensions(width: w, height: h, unit: unit)
+    }
+
+    func testSizeBandsUseLongestSideInCentimeters() {
+        XCTAssertEqual(dims(30, 39).sizeClass, .small)
+        XCTAssertEqual(dims(30, 40).sizeClass, .medium)
+        XCTAssertEqual(dims(100, 60).sizeClass, .medium)
+        XCTAssertEqual(dims(122, 80).sizeClass, .large)
+        XCTAssertEqual(dims(16, 20, "in").sizeClass, .medium, "20 in is about 51 cm")
+    }
+
+    func testSeriesAndSizeAreSavedAndSearchable() throws {
+        var art = Artwork(id: "a1", artistId: "o", title: "Dusk", details: "", price: 10, status: .available, medium: .acrylic, style: .abstract, dimensions: dims(122, 80), year: 2026)
+        art.series = "  Autumn Water  "
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(art, to: record)
+        XCTAssertEqual(record["sizeClass"] as? String, "large")
+        XCTAssertEqual(record["series"] as? String, "Autumn Water")
+        XCTAssertTrue((record["searchTokens"] as? [String] ?? []).contains("autumn"))
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "o", thumbnailURL: nil))
+        XCTAssertEqual(mapped.series, "Autumn Water")
+    }
+
+    func testSizeFilterReachesPredicateAndCollections() {
+        var filters = ArtworkFilters()
+        filters.sizes = [.small]
+        XCTAssertTrue(filters.hasRefinements)
+        XCTAssertTrue(ArtworkMapper.predicate(for: filters).predicateFormat.contains("sizeClass"))
+    }
+
+    func testDemoSizeFilter() async throws {
+        let backend = DemoBackend(mode: "collector")
+        var filters = ArtworkFilters()
+        filters.sizes = [.large]
+        let page = try await backend.artworks(filters: filters, cursor: nil)
+        XCTAssertFalse(page.items.isEmpty)
+        XCTAssertTrue(page.items.allSatisfy { $0.dimensions.sizeClass == .large })
+    }
+}

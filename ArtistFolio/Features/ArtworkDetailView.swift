@@ -14,6 +14,12 @@ struct ArtworkDetailView: View {
     @State private var showShare = false
     @State private var viewerMode: ArtworkViewMode?
     @State private var isPastHero = false
+    @State private var showOffer = false
+    @State private var openFailed = false
+    @State private var chooseEnquiryChannel = false
+    @State private var showCareGuide = false
+    @State private var seriesWorks: [Artwork] = []
+    @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let sheetOverlap: CGFloat = 110
@@ -85,6 +91,22 @@ struct ArtworkDetailView: View {
         .sheet(isPresented: $showShare) {
             SocialShareSheet(subject: .artwork(artwork, preferredImage: galleryURLs.indices.contains(selectedImage) ? galleryURLs[selectedImage] : nil))
         }
+        .sheet(isPresented: $showCareGuide) {
+            CareGuideView(highlight: artwork.medium)
+        }
+        .sheet(isPresented: $showOffer) {
+            OfferSheet(artwork: artwork, artistName: artwork.artistName, channels: buyerChannels)
+        }
+        .confirmationDialog("Ask \(BuyerMessage.firstName(artwork.artistName)) for the price", isPresented: $chooseEnquiryChannel, titleVisibility: .visible) {
+            ForEach(buyerChannels, id: \.self) { channel in
+                Button(channel.label) { askForPrice(via: channel) }
+            }
+        }
+        .alert("Couldn\u{2019}t open the app", isPresented: $openFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Use another contact option on \(BuyerMessage.firstName(artwork.artistName))\u{2019}s profile.")
+        }
         .sheet(isPresented: $showReport) {
             ReportSheet(target: .artwork, targetID: artwork.id, name: artwork.title)
         }
@@ -96,6 +118,7 @@ struct ArtworkDetailView: View {
         .task(id: artwork.id) {
             artist = try? await appState.backend.profile(ownerID: artwork.artistId)
             imageURLs = (try? await appState.backend.fullImages(artworkID: artwork.id)) ?? []
+            seriesWorks = await loadSeriesWorks()
         }
     }
 
@@ -194,17 +217,8 @@ struct ArtworkDetailView: View {
                 .frame(maxWidth: .infinity)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: AFSpacing.xxs) {
-                Text(artwork.title).font(.title.bold())
-                Text("\(artwork.medium.rawValue) · \(String(artwork.year))")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.afTextSecondary)
-                HStack(spacing: AFSpacing.xs) {
-                    Text(artwork.priceText).font(.title2.weight(.semibold))
-                    if artwork.status != .available { StatusBadge(status: artwork.status) }
-                }
-                .padding(.top, AFSpacing.xxs)
-            }
+            listingHeader
+            priceCard
 
             NavigationLink(value: ArtistLink(id: artwork.artistId)) {
                 HStack(spacing: AFSpacing.sm) {
@@ -249,6 +263,12 @@ struct ArtworkDetailView: View {
                 .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
             }
 
+            careSection
+
+            if !seriesWorks.isEmpty {
+                moreFromSeries
+            }
+
             if !artwork.tags.isEmpty {
                 FlowLayout(spacing: AFSpacing.xs) {
                     ForEach(artwork.tags, id: \.self) { tag in
@@ -276,6 +296,199 @@ struct ArtworkDetailView: View {
         )
     }
 
+    private var listingHeader: some View {
+        VStack(alignment: .leading, spacing: AFSpacing.xs) {
+            VStack(alignment: .leading, spacing: AFSpacing.xxs) {
+                Text(artwork.title)
+                    .font(.title.bold())
+                    .accessibilityAddTraits(.isHeader)
+                Text("\(artwork.medium.rawValue) · \(artwork.dimensions.displayString) · \(String(artwork.year))")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.afTextSecondary)
+            }
+            FlowLayout(spacing: AFSpacing.xs) {
+                ListingChip(status: artwork.status)
+                ListingChip(text: artwork.style.rawValue)
+                if !seriesName.isEmpty {
+                    ListingChip(text: "Series: \(seriesName)")
+                }
+            }
+        }
+    }
+
+    private var seriesName: String { artwork.series.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// Other pieces by the same artist in the same series, newest first.
+    private func loadSeriesWorks() async -> [Artwork] {
+        guard !seriesName.isEmpty,
+              let works = try? await appState.backend.artworks(ownerID: artwork.artistId) else { return [] }
+        return works
+            .filter { $0.id != artwork.id && $0.series.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(seriesName) == .orderedSame }
+            .filter(appState.isVisible)
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private var moreFromSeries: some View {
+        VStack(alignment: .leading, spacing: AFSpacing.xs) {
+            Text("More from \u{201C}\(seriesName)\u{201D}").font(.headline)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: AFSpacing.sm) {
+                    ForEach(seriesWorks) { work in
+                        ArtworkLink(artwork: work).frame(width: 150)
+                    }
+                }
+            }
+            .scrollClipDisabled()
+        }
+    }
+
+    @ViewBuilder
+    private var careSection: some View {
+        let note = artwork.careNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !note.isEmpty || artwork.showCareTips {
+            VStack(alignment: .leading, spacing: AFSpacing.xs) {
+                HStack {
+                    Text("Caring for this piece").font(.headline)
+                    Spacer()
+                    ListingChip(text: artwork.medium.rawValue)
+                }
+                if !note.isEmpty {
+                    VStack(alignment: .leading, spacing: AFSpacing.xxs) {
+                        Text("From \(artistFirstName)")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color.afPrimary)
+                        Text(note).font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(AFSpacing.md)
+                    .background(Color.afPrimary.opacity(0.07), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+                    .accessibilityElement(children: .combine)
+                }
+                if artwork.showCareTips {
+                    VStack(alignment: .leading, spacing: AFSpacing.sm) {
+                        ForEach(CareGuide.tips(for: artwork.medium)) { tip in
+                            Label {
+                                Text(tip.text).font(.subheadline)
+                            } icon: {
+                                Image(systemName: tip.icon)
+                                    .foregroundStyle(Color.afIconSecondary)
+                                    .frame(width: 24)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(AFSpacing.md)
+                    .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+                }
+                Button { showCareGuide = true } label: {
+                    Label("Read the full care guide", systemImage: "chevron.forward")
+                        .labelStyle(TrailingIconLabelStyle())
+                        .font(.subheadline.weight(.medium))
+                }
+                .tint(Color.afPrimary)
+                if artwork.showCareTips {
+                    Text("General tips for \(artwork.medium.rawValue.lowercased()).\(note.isEmpty ? "" : " Follow the artist\u{2019}s note first.")")
+                        .font(.footnote)
+                        .foregroundStyle(Color.afTextSecondary)
+                }
+            }
+        }
+    }
+
+    private var artistFirstName: String {
+        artwork.artistName.split(separator: " ").first.map(String.init) ?? artwork.artistName
+    }
+
+    private var priceCard: some View {
+        HStack(spacing: AFSpacing.sm) {
+            if artwork.status == .sold {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("This piece has sold")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color.afTextSecondary)
+                    Text(isOwner ? artwork.priceText : "Follow \(artistFirstName) for new work")
+                        .font(isOwner ? .title2.weight(.semibold) : .headline)
+                }
+                Spacer(minLength: 0)
+                if !isOwner {
+                    followButton
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Price")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color.afTextSecondary)
+                    if artwork.priceOnRequest {
+                        Text("On request").font(.headline)
+                    } else {
+                        Text(artwork.priceText).font(.title2.weight(.semibold))
+                    }
+                }
+                Spacer(minLength: 0)
+                if canMessageArtist {
+                    buyerAction
+                }
+            }
+        }
+        .padding(.horizontal, AFSpacing.md)
+        .padding(.vertical, 14)
+        .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Offers and price questions go by email or WhatsApp, whichever the artist listed.
+    private var buyerChannels: [BuyerMessage.Channel] { BuyerMessage.channels(for: artist) }
+
+    private var canMessageArtist: Bool {
+        !isOwner && artwork.status == .available && !buyerChannels.isEmpty
+    }
+
+    private func askForPrice(via channel: BuyerMessage.Channel) {
+        guard let url = BuyerMessage.priceEnquiryURL(via: channel, artistName: artwork.artistName, artwork: artwork) else { return }
+        openURL(url) { accepted in if !accepted { openFailed = true } }
+    }
+
+    @ViewBuilder
+    private var buyerAction: some View {
+        if artwork.priceOnRequest {
+            Button {
+                if buyerChannels.count == 1, let channel = buyerChannels.first {
+                    askForPrice(via: channel)
+                } else {
+                    chooseEnquiryChannel = true
+                }
+            } label: {
+                Text("Ask for Price")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, AFSpacing.xs)
+            }
+            .afGlassProminentButton()
+            .tint(Color.afPrimary)
+        } else {
+            Button { showOffer = true } label: {
+                Text("Make an Offer")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, AFSpacing.xs)
+            }
+            .afGlassButton()
+            .tint(Color.afPrimary)
+        }
+    }
+
+    private var followButton: some View {
+        let following = appState.isFollowing(artwork.artistId)
+        return Button {
+            appState.toggleFollowing(artwork.artistId)
+        } label: {
+            Text(following ? "Following" : "Follow")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, AFSpacing.xs)
+        }
+        .afGlassButton()
+        .tint(Color.afPrimary)
+        .sensoryFeedback(.selection, trigger: following)
+    }
+
     @ViewBuilder
     private var bottomBar: some View {
         if isOwner {
@@ -286,12 +499,8 @@ struct ArtworkDetailView: View {
                 .primaryAction()
             }
         } else if artwork.status == .sold {
-            barContainer {
-                Text("This piece has sold")
-                    .font(.subheadline.weight(.medium))
-                    .frame(maxWidth: .infinity, minHeight: 50)
-                    .afGlass(in: Capsule())
-            }
+            // The price card already says it has sold and offers Follow.
+            EmptyView()
         } else if let options = artist?.contactOptions, !options.isEmpty {
             barContainer {
                 Button { showContact = true } label: {
@@ -550,6 +759,145 @@ struct ReportSheet: View {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+private struct OfferSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    let artwork: Artwork
+    let artistName: String
+    let channels: [BuyerMessage.Channel]
+    @State private var amount = ""
+    @State private var note = ""
+    @State private var openFailed = false
+    @State private var chooseChannel = false
+    @FocusState private var amountFocused: Bool
+
+    private var firstName: String { BuyerMessage.firstName(artistName) }
+    private var amountValue: Double? { BuyerMessage.amount(from: amount) }
+
+    private var sendTitle: String {
+        channels.count == 1 ? "Open \(channels[0].label)" : "Send"
+    }
+
+    private var channelNames: String {
+        channels.map(\.label).joined(separator: " or ")
+    }
+
+    private func send(via channel: BuyerMessage.Channel) {
+        guard let amountValue,
+              let url = BuyerMessage.offerURL(via: channel, artistName: artistName, artwork: artwork, amount: amountValue, note: note) else { return }
+        openURL(url) { accepted in
+            if accepted { dismiss() } else { openFailed = true }
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Amount", text: $amount, prompt: Text("1200"))
+                        .keyboardType(.decimalPad)
+                        .focused($amountFocused)
+                } header: {
+                    Text("Your offer (USD)")
+                } footer: {
+                    if !artwork.priceOnRequest {
+                        Text("Listed at \(artwork.priceText).")
+                    }
+                }
+
+                Section {
+                    TextField("Add a message for \(firstName)", text: $note, axis: .vertical)
+                        .lineLimit(3...6)
+                        .onChange(of: note) { _, value in
+                            if value.count > BuyerMessage.maxNoteLength { note = String(value.prefix(BuyerMessage.maxNoteLength)) }
+                        }
+                } header: {
+                    Text("Note (optional)")
+                } footer: {
+                    Text("Opens \(channelNames) with your offer to \(firstName). Artist Folio doesn\u{2019}t handle payment or delivery.")
+                }
+            }
+            .navigationTitle("Make an Offer")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(sendTitle) {
+                        if channels.count == 1, let channel = channels.first {
+                            send(via: channel)
+                        } else {
+                            chooseChannel = true
+                        }
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(amountValue == nil || channels.isEmpty)
+                }
+            }
+            .confirmationDialog("Send your offer with", isPresented: $chooseChannel, titleVisibility: .visible) {
+                ForEach(channels, id: \.self) { channel in
+                    Button(channel.label) { send(via: channel) }
+                }
+            }
+            .alert("Couldn\u{2019}t open the app", isPresented: $openFailed) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Use another contact option on \(firstName)\u{2019}s profile.")
+            }
+            .onAppear { amountFocused = true }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
+private struct TrailingIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.title
+            configuration.icon.imageScale(.small)
+        }
+    }
+}
+
+/// Care tips for every medium, with the listing's medium first.
+struct CareGuideView: View {
+    @Environment(\.dismiss) private var dismiss
+    let highlight: ArtworkMedium?
+
+    private var mediums: [ArtworkMedium] {
+        guard let highlight else { return ArtworkMedium.allCases }
+        return [highlight] + ArtworkMedium.allCases.filter { $0 != highlight }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("General advice for looking after original art. If the artist gave their own care note, follow that first.")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.afTextSecondary)
+                }
+                ForEach(mediums) { medium in
+                    Section(medium.rawValue) {
+                        ForEach(CareGuide.tips(for: medium)) { tip in
+                            Label(tip.text, systemImage: tip.icon)
+                                .font(.subheadline)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Care Guide")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
                 }
             }
         }

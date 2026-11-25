@@ -17,13 +17,15 @@ struct UserProfile: Identifiable, Hashable {
     var website: String = ""
     var instagramHandle: String = ""
     var contactEmail: String = ""
+    var phone: String = ""
+    var whatsapp: String = ""
     var acceptsCommissions: Bool = false
     var avatarURL: URL?
     var followerCount: Int = 0
     var artworkCount: Int = 0
 
     var contactOptions: [ContactOption] {
-        ContactLinks.options(email: contactEmail, instagram: instagramHandle, website: website)
+        ContactLinks.options(email: contactEmail, instagram: instagramHandle, website: website, phone: phone, whatsapp: whatsapp)
     }
 }
 
@@ -61,6 +63,24 @@ enum ArtworkStatus: String, CaseIterable, Identifiable {
     var label: String { rawValue.capitalized }
 }
 
+/// Size band from the longest side, used by the size filter.
+enum ArtworkSize: String, CaseIterable, Identifiable {
+    case small, medium, large
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .small: return "Small (under 40 cm)"
+        case .medium: return "Medium (40\u{2013}100 cm)"
+        case .large: return "Large (over 100 cm)"
+        }
+    }
+
+    init(longestSideCentimeters side: Double) {
+        if side < 40 { self = .small } else if side <= 100 { self = .medium } else { self = .large }
+    }
+}
+
 struct ArtworkDimensions: Hashable {
     var width: Double
     var height: Double
@@ -91,6 +111,11 @@ struct ArtworkDimensions: Hashable {
         "\(Self.format(width)) x \(Self.format(height)) \(unit)"
     }
 
+    var sizeClass: ArtworkSize {
+        let size = sizeInCentimeters
+        return ArtworkSize(longestSideCentimeters: max(size.width, size.height))
+    }
+
     private static func format(_ value: Double) -> String {
         value.rounded() == value ? String(Int(value)) : String(format: "%.1f", value)
     }
@@ -111,9 +136,20 @@ struct Artwork: Identifiable, Hashable {
     var tags: [String] = []
     var thumbnailURL: URL?
     var createdAt: Date = Date()
+    /// The artist hides the price; buyers ask for it. `price` is stored as 0.
+    var priceOnRequest: Bool = false
+    /// The artist's own care advice, shown above the standard tips.
+    var careNote: String = ""
+    /// Whether to show the standard care tips for the medium.
+    var showCareTips: Bool = true
+    /// Optional name of the series this piece belongs to.
+    var series: String = ""
+
+    static let maxSeriesLength = 60
 
     var priceText: String {
-        price.formatted(.currency(code: "USD").precision(.fractionLength(price.rounded() == price ? 0 : 2)))
+        if priceOnRequest { return "Price on request" }
+        return price.formatted(.currency(code: "USD").precision(.fractionLength(price.rounded() == price ? 0 : 2)))
     }
 }
 
@@ -121,6 +157,7 @@ struct ArtworkFilters: Hashable {
     var text: String = ""
     var styles: [ArtworkStyle] = []
     var mediums: [ArtworkMedium] = []
+    var sizes: [ArtworkSize] = []
     var minPrice: Double = 0
     var maxPrice: Double = ArtworkFilters.priceCeiling
     var sortBy: SortOption = .newest
@@ -128,7 +165,21 @@ struct ArtworkFilters: Hashable {
     static let priceCeiling: Double = 50000
 
     var hasRefinements: Bool {
-        !styles.isEmpty || !mediums.isEmpty || minPrice > 0 || maxPrice < Self.priceCeiling
+        !styles.isEmpty || !mediums.isEmpty || !sizes.isEmpty || hasPriceLimit
+    }
+
+    var hasPriceLimit: Bool { minPrice > 0 || maxPrice < Self.priceCeiling }
+
+    /// Price-on-request pieces match only when no price limit is set.
+    func matchesPrice(_ artwork: Artwork) -> Bool {
+        if artwork.priceOnRequest { return !hasPriceLimit }
+        return artwork.price >= minPrice && artwork.price <= maxPrice
+    }
+
+    /// For price sorts, moves price-on-request pieces after priced ones, keeping order otherwise.
+    func ordered(_ items: [Artwork]) -> [Artwork] {
+        guard sortBy != .newest else { return items }
+        return items.filter { !$0.priceOnRequest } + items.filter(\.priceOnRequest)
     }
 
     enum SortOption: String, CaseIterable, Identifiable {
@@ -159,8 +210,8 @@ struct ArtCollection: Identifiable, Hashable {
     func matches(_ artwork: Artwork) -> Bool {
         (filters.styles.isEmpty || filters.styles.contains(artwork.style))
             && (filters.mediums.isEmpty || filters.mediums.contains(artwork.medium))
-            && artwork.price >= filters.minPrice
-            && artwork.price <= filters.maxPrice
+            && (filters.sizes.isEmpty || filters.sizes.contains(artwork.dimensions.sizeClass))
+            && filters.matchesPrice(artwork)
     }
 
     static let featured = ArtCollection("abstract", "Abstract Masters", "Bold forms & pure emotion", styles: [.abstract])
@@ -262,6 +313,8 @@ protocol ArtBackend: AnyObject {
     func artworks(filters: ArtworkFilters, cursor: CKQueryOperation.Cursor?) async throws -> ArtworkPage
     func artworks(ownerID: String) async throws -> [Artwork]
     func artworks(ids: [String]) async throws -> [Artwork]
+    /// Fills in the stored size band on the signed-in artist's older listings. Returns how many were updated.
+    func backfillSizeClasses() async throws -> Int
     func fullImages(artworkID: String) async throws -> [URL]
     func saveArtwork(_ artwork: Artwork, images: [ProcessedImage]?) async throws -> Artwork
     func deleteArtwork(id: String) async throws
@@ -269,4 +322,54 @@ protocol ArtBackend: AnyObject {
     func setLibrary(_ kind: LibraryKind, id: String, included: Bool) async throws
     func submitReport(target: ReportTarget, targetID: String, reason: ReportReason, note: String) async throws
     func deleteAccount() async throws
+}
+
+/// Facts for the artist summary card, worked out from the artist's published artworks.
+struct ArtistSummary: Equatable {
+    struct Stat: Equatable, Identifiable {
+        let value: String
+        let label: String
+        var id: String { label }
+    }
+
+    let stats: [Stat]
+    let topMediums: [ArtworkMedium]
+
+    /// The card needs at least two facts to be worth showing.
+    var showsCard: Bool { stats.count >= 2 }
+
+    init(artworks: [Artwork]) {
+        var stats: [Stat] = []
+        if !artworks.isEmpty {
+            stats.append(Stat(value: String(artworks.count), label: artworks.count == 1 ? "Work" : "Works"))
+        }
+        let sold = artworks.filter { $0.status == .sold }.count
+        if sold > 0 {
+            stats.append(Stat(value: String(sold), label: "Sold"))
+        }
+        let prices = artworks.filter { $0.status == .available && !$0.priceOnRequest && $0.price > 0 }.map(\.price)
+        if let lowest = prices.min() {
+            stats.append(Stat(value: Self.compactPrice(lowest), label: "From"))
+        }
+        self.stats = stats
+
+        var counts: [ArtworkMedium: Int] = [:]
+        for artwork in artworks { counts[artwork.medium, default: 0] += 1 }
+        topMediums = counts
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key.rawValue < $1.key.rawValue }
+            .prefix(3)
+            .map(\.key)
+    }
+
+    /// "$400", "$1.2K", "$15K" — short enough for a stat column.
+    static func compactPrice(_ value: Double) -> String {
+        if value >= 1000 {
+            let thousands = value / 1000
+            let text = thousands >= 10 || thousands.rounded() == thousands
+                ? String(Int(thousands.rounded()))
+                : String(format: "%.1f", thousands)
+            return "$\(text)K"
+        }
+        return "$\(Int(value.rounded()))"
+    }
 }
