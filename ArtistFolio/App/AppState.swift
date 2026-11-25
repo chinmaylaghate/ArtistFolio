@@ -36,6 +36,8 @@ final class AppState: ObservableObject {
     private var accountObserver: NSObjectProtocol?
     private var accountGeneration = 0
     private var didBackfillSizes = false
+    private var viewedThisSession: Set<String> = []
+    private static let countsInterval: TimeInterval = 60 * 60
 
     init(backend: ArtBackend? = nil) {
         let resolved = backend ?? BackendFactory.make()
@@ -123,7 +125,10 @@ final class AppState: ObservableObject {
 
         let loadedLibrary = try? await backend.library()
         guard generation == accountGeneration else { return }
-        if let loadedLibrary { library = loadedLibrary }
+        if let loadedLibrary {
+            library = loadedLibrary
+            Task { await mirrorLibraryOnce(loadedLibrary) }
+        }
         normalizeTab()
     }
 
@@ -229,6 +234,36 @@ final class AppState: ObservableObject {
         guard !didBackfillSizes, !isDemoMode, hasICloud else { return }
         didBackfillSizes = true
         if (try? await backend.backfillSizeClasses()) == nil { didBackfillSizes = false }
+    }
+
+    /// Counts a view the first time a signed-in user opens someone else's artwork in a session.
+    func recordView(of artwork: Artwork) {
+        guard !isDemoMode, let me = currentUserID, artwork.artistId != me,
+              viewedThisSession.insert(artwork.id).inserted else { return }
+        Task { try? await backend.recordView(artworkID: artwork.id) }
+    }
+
+    /// Recounts the artist's views, likes and followers at most once an hour. Returns true when it ran.
+    @discardableResult
+    func refreshCountsIfDue() async -> Bool {
+        guard !isDemoMode, isArtist, let me = currentUserID else { return false }
+        let key = "countsRefreshedAt-\(me)"
+        if let last = UserDefaults.standard.object(forKey: key) as? Date, Date().timeIntervalSince(last) < Self.countsInterval {
+            return false
+        }
+        guard (try? await backend.refreshCounts()) != nil else { return false }
+        UserDefaults.standard.set(Date(), forKey: key)
+        return true
+    }
+
+    /// Saves and follows made before 1.2 exist only privately; publish them once so counts include them.
+    private func mirrorLibraryOnce(_ library: UserLibrary) async {
+        guard !isDemoMode, let me = currentUserID, !(library.saved.isEmpty && library.following.isEmpty) else { return }
+        let key = "didMirrorLibrary-\(me)"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        if (try? await backend.mirrorPublicLibrary(library)) != nil {
+            UserDefaults.standard.set(true, forKey: key)
+        }
     }
 
     func isFollowing(_ artistID: String) -> Bool { library.following.contains(artistID) }

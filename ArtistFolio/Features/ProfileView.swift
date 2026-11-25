@@ -205,7 +205,7 @@ struct ArtistProfileView: View {
     }
 
     private var isSelf: Bool { artistId == appState.currentUserID }
-    private var summary: ArtistSummary { ArtistSummary(artworks: artworks) }
+    private var summary: ArtistSummary { ArtistSummary(artworks: artworks, followerCount: profile?.followerCount ?? 0) }
 
     var body: some View {
         Group {

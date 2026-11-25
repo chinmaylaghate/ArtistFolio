@@ -18,7 +18,8 @@ enum ProfileMapper {
             phone: record["phone"] as? String ?? "",
             whatsapp: record["whatsapp"] as? String ?? "",
             acceptsCommissions: (record["acceptsCommissions"] as? Int64 ?? 0) == 1,
-            avatarURL: avatarURL
+            avatarURL: avatarURL,
+            followerCount: Int(record["followerCount"] as? Int64 ?? 0)
         )
     }
 

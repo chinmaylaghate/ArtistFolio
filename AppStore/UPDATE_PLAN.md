@@ -4,12 +4,15 @@ Source: "Recommended V1 scope" in the research doc [ArtistFolio Competitor Analy
 
 **Starting point:** 1.0.0 (build 8) is approved and live on the App Store (as of 2026-11-24).
 
-**Status (2026-11-24):** all of 1.1 (items 1–9) is built on `social-sharing` as version 1.1.0 (9). Release steps are in `RELEASE_1.1.md`. 1.2 is in progress on `universal-links-qr`: universal links, QR labels and reviews are built; view, like and follower counts are not.
+**Status (2026-11-24):** all of 1.1 (items 1–9) is built on `social-sharing` as version 1.1.0 (9). Release steps are in `RELEASE_1.1.md`. All of 1.2 is built on `universal-links-qr`: universal links, QR labels, reviews, and view, like and follower counts. It is not yet versioned, released or merged.
 
 **1.2 release notes so far:**
 - CloudKit: new `Review` record type (see `CloudKit/schema.ckdb`; `___createTime` must be sortable and `___createdBy` queryable). Deploy before release, along with any 1.1 fields not yet deployed.
 - Website: universal link files are live (artistfolio-site `aa600fd`). The privacy policy needs a line for reviews before 1.2 ships: "Reviews you write — your rating, text and name, displayed publicly on the artist's profile."
 - App Privacy: reviews fall under "Other User Content", already declared. Add them to that row's description.
+- CloudKit (counts): new public types `ArtworkLike`, `ArtistFollow`, `ArtworkView` (targetID queryable, `___createdBy` queryable), plus Artwork `viewCount`, `likeCount` and Profile `followerCount`. Saves and follows still live privately; the public copies are written alongside and backfilled once per user. The artist's app recounts at most hourly when Studio opens.
+- Privacy policy (counts): add "Views, saves and follows — recorded against your iCloud identifier so artists see totals; individual activity isn't shown in the app." Note that these public records can be read by anyone querying CloudKit directly.
+- App Privacy (counts): add **Usage Data: Product Interaction** (linked to user, not tracking, App Functionality).
 - Review notes: in Collector Demo, Elena Rossi has 2 reviews (no average); writing one makes the average appear. Report Review is in each review's "..." menu.
 
 **Already built, so not in the plan:** multiple photos per artwork. Upload takes up to 5 photos (`UploadView.maxPhotos`), CloudKit stores them in `Artwork.images`, and the detail page shows a swipe gallery.

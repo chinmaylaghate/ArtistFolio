@@ -19,7 +19,7 @@ extension CloudKitService {
     }
 
     func setLibrary(_ kind: LibraryKind, id: String, included: Bool) async throws {
-        _ = try await requireUserID()
+        let userID = try await requireUserID()
         let recordID = CKRecord.ID(recordName: "\(kind.rawValue)-\(id)")
         if included {
             let record = CKRecord(recordType: kind.recordType, recordID: recordID)
@@ -30,6 +30,8 @@ extension CloudKitService {
         } else {
             try await delete([recordID], from: privateDB)
         }
+        // Only after the private change succeeds, so counts never include a save the user doesn't have.
+        Task { await setPublicActivity(kind, id: id, included: included, userID: userID) }
     }
 
     func submitReport(target: ReportTarget, targetID: String, reason: ReportReason, note: String) async throws {

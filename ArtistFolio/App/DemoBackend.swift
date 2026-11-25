@@ -43,6 +43,15 @@ final class DemoBackend: ArtBackend {
         if let index = items.firstIndex(where: { $0.id == "art-2" }) {
             items[index].careNote = "Varnished with a UV gloss. Wipe the frame only; the surface needs no cleaning."
         }
+        for (id, views, likes) in [("art-2", 1830, 142), ("art-16", 210, 18), ("art-10", 640, 37), ("art-12", 12, 2)] {
+            if let index = items.firstIndex(where: { $0.id == id }) {
+                items[index].viewCount = views
+                items[index].likeCount = likes
+            }
+        }
+        profiles[sofia.id]?.followerCount = 2340
+        profiles[elena.id]?.followerCount = 48
+        profiles[james.id]?.followerCount = 3
         for id in ["art-2", "art-16", "art-17"] {
             if let index = items.firstIndex(where: { $0.id == id }) { items[index].series = "Autumn Water" }
         }
@@ -171,6 +180,9 @@ final class DemoBackend: ArtBackend {
     func artworks(ownerID: String) async throws -> [Artwork] { items.filter { $0.artistId == ownerID } }
     func artworks(ids: [String]) async throws -> [Artwork] { items.filter { ids.contains($0.id) } }
     func backfillSizeClasses() async throws -> Int { 0 }
+    func recordView(artworkID: String) async throws {}
+    func mirrorPublicLibrary(_ library: UserLibrary) async throws {}
+    func refreshCounts() async throws {}
 
     func reviews(artistID: String) async throws -> [Review] {
         reviewStore.filter { $0.artistID == artistID }.sorted { $0.createdAt > $1.createdAt }
@@ -210,6 +222,9 @@ final class DemoBackend: ArtBackend {
             try? FileManager.default.removeItem(at: temp)
         }
         if let index = items.firstIndex(where: { $0.id == output.id }) {
+            // Counts belong to the server, not the editor, as in CloudKit.
+            output.viewCount = items[index].viewCount
+            output.likeCount = items[index].likeCount
             items[index] = output
         } else {
             items.insert(output, at: 0)

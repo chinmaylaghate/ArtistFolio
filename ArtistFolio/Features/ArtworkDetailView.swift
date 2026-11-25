@@ -126,6 +126,7 @@ struct ArtworkDetailView: View {
             }
         }
         .task(id: artwork.id) {
+            appState.recordView(of: artwork)
             artist = try? await appState.backend.profile(ownerID: artwork.artistId)
             imageURLs = (try? await appState.backend.fullImages(artworkID: artwork.id)) ?? []
             seriesWorks = await loadSeriesWorks()
@@ -232,6 +233,9 @@ struct ArtworkDetailView: View {
 
             listingHeader
             priceCard
+            if CountDisplay.showsArtworkStats(artwork, isOwner: isOwner) {
+                statsRow
+            }
 
             NavigationLink(value: ArtistLink(id: artwork.artistId)) {
                 HStack(spacing: AFSpacing.sm) {
@@ -455,6 +459,20 @@ struct ArtworkDetailView: View {
         .padding(.vertical, 14)
         .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
         .accessibilityElement(children: .contain)
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: AFSpacing.md) {
+            Label("\(CountDisplay.compact(artwork.viewCount)) \(artwork.viewCount == 1 ? "view" : "views")", systemImage: "eye")
+            Label("\(CountDisplay.compact(artwork.likeCount)) \(artwork.likeCount == 1 ? "save" : "saves")", systemImage: "heart")
+            if isOwner {
+                Spacer()
+                Text("Updated hourly").foregroundStyle(Color.afTextSecondary.opacity(0.8))
+            }
+        }
+        .font(.footnote.weight(.medium))
+        .foregroundStyle(Color.afTextSecondary)
+        .accessibilityElement(children: .combine)
     }
 
     /// Offers and price questions go by email or WhatsApp, whichever the artist listed.

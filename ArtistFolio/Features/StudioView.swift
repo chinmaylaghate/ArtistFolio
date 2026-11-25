@@ -60,6 +60,11 @@ struct StudioView: View {
                 Text("\(artwork.priceText) · \(artwork.status.label)")
                     .font(.subheadline)
                     .foregroundStyle(Color.afTextSecondary)
+                if artwork.viewCount > 0 || artwork.likeCount > 0 {
+                    Label("\(CountDisplay.compact(artwork.viewCount)) views · \(CountDisplay.compact(artwork.likeCount)) saves", systemImage: "chart.bar")
+                        .font(.caption)
+                        .foregroundStyle(Color.afTextSecondary)
+                }
             }
         }
     }
@@ -85,6 +90,9 @@ struct StudioView: View {
         do {
             artworks = try await appState.backend.artworks(ownerID: id)
             await appState.backfillSizeClassesOnce()
+            if await appState.refreshCountsIfDue() {
+                artworks = try await appState.backend.artworks(ownerID: id)
+            }
         } catch is CancellationError {
             return
         } catch {

@@ -716,3 +716,53 @@ final class ReviewTests: XCTestCase {
         XCTAssertEqual(model.reviews.count, total - 1)
     }
 }
+
+final class CountTests: XCTestCase {
+    private func art(views: Int, likes: Int) -> Artwork {
+        var art = Artwork(id: "a1", artistId: "o", title: "T", details: "", price: 10, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 1, height: 1, unit: "cm"), year: 2026)
+        art.viewCount = views
+        art.likeCount = likes
+        return art
+    }
+
+    func testCompactNumbers() {
+        XCTAssertEqual(CountDisplay.compact(980), "980")
+        XCTAssertEqual(CountDisplay.compact(1830), "1.8K")
+        XCTAssertEqual(CountDisplay.compact(12_400), "12K")
+        XCTAssertEqual(CountDisplay.compact(2_000), "2K")
+        XCTAssertEqual(CountDisplay.compact(1_250_000), "1.3M")
+    }
+
+    func testBuyersSeeStatsOnlyAboveThresholds() {
+        XCTAssertFalse(CountDisplay.showsArtworkStats(art(views: 24, likes: 4), isOwner: false))
+        XCTAssertTrue(CountDisplay.showsArtworkStats(art(views: 25, likes: 0), isOwner: false))
+        XCTAssertTrue(CountDisplay.showsArtworkStats(art(views: 0, likes: 5), isOwner: false))
+        XCTAssertTrue(CountDisplay.showsArtworkStats(art(views: 3, likes: 0), isOwner: true))
+        XCTAssertFalse(CountDisplay.showsArtworkStats(art(views: 0, likes: 0), isOwner: true))
+    }
+
+    func testCountsAreReadFromRecords() throws {
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(art(views: 0, likes: 0), to: record)
+        XCTAssertNil(record["viewCount"], "editing a listing must not overwrite counts")
+        record["viewCount"] = Int64(1830)
+        record["likeCount"] = Int64(142)
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "o", thumbnailURL: nil))
+        XCTAssertEqual(mapped.viewCount, 1830)
+        XCTAssertEqual(mapped.likeCount, 142)
+    }
+
+    func testFollowersLeadTheSummaryOnceThereAreEnough() {
+        let works = [art(views: 0, likes: 0)]
+        XCTAssertEqual(ArtistSummary(artworks: works, followerCount: 4).stats.first?.label, "Work")
+        let summary = ArtistSummary(artworks: works, followerCount: 2340)
+        XCTAssertEqual(summary.stats.first?.value, "2.3K")
+        XCTAssertLessThanOrEqual(summary.stats.count, 3)
+    }
+
+    func testPublicActivityRecordNamesAreOnePerUser() {
+        XCTAssertEqual(PublicActivity.recordName(type: PublicActivity.likeType, userID: "_u", targetID: "a1"), "like__u_a1")
+        XCTAssertEqual(PublicActivity.recordType(for: .following), PublicActivity.followType)
+        XCTAssertNil(PublicActivity.recordType(for: .blocked), "blocks stay private")
+    }
+}

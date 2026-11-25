@@ -144,6 +144,9 @@ struct Artwork: Identifiable, Hashable {
     var showCareTips: Bool = true
     /// Optional name of the series this piece belongs to.
     var series: String = ""
+    /// Distinct signed-in viewers and savers, counted by the artist's app (see `refreshCounts`).
+    var viewCount: Int = 0
+    var likeCount: Int = 0
 
     static let maxSeriesLength = 60
 
@@ -366,6 +369,12 @@ protocol ArtBackend: AnyObject {
     func saveReview(_ review: Review) async throws -> Review
     /// Deletes the signed-in user's review of an artist.
     func deleteReview(artistID: String) async throws
+    /// Notes that the signed-in user opened an artwork (one record per user per artwork).
+    func recordView(artworkID: String) async throws
+    /// Publishes public copies of saves and follows made before counts existed.
+    func mirrorPublicLibrary(_ library: UserLibrary) async throws
+    /// Recounts the signed-in artist's views, likes and followers and saves the totals.
+    func refreshCounts() async throws
     /// Fills in the stored size band on the signed-in artist's older listings. Returns how many were updated.
     func backfillSizeClasses() async throws -> Int
     func fullImages(artworkID: String) async throws -> [URL]
@@ -391,8 +400,12 @@ struct ArtistSummary: Equatable {
     /// The card needs at least two facts to be worth showing.
     var showsCard: Bool { stats.count >= 2 }
 
-    init(artworks: [Artwork]) {
+    /// Followers lead once there are enough of them; the card keeps at most three facts.
+    init(artworks: [Artwork], followerCount: Int = 0) {
         var stats: [Stat] = []
+        if followerCount >= CountDisplay.minimumFollowers {
+            stats.append(Stat(value: CountDisplay.compact(followerCount), label: "Followers"))
+        }
         if !artworks.isEmpty {
             stats.append(Stat(value: String(artworks.count), label: artworks.count == 1 ? "Work" : "Works"))
         }
@@ -404,7 +417,7 @@ struct ArtistSummary: Equatable {
         if let lowest = prices.min() {
             stats.append(Stat(value: Self.compactPrice(lowest), label: "From"))
         }
-        self.stats = stats
+        self.stats = Array(stats.prefix(3))
 
         var counts: [ArtworkMedium: Int] = [:]
         for artwork in artworks { counts[artwork.medium, default: 0] += 1 }
