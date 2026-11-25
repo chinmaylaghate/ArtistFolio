@@ -17,9 +17,18 @@ enum ImageStore {
         return cacheFile(source, key: key)
     }
 
-    static func cacheFile(_ source: URL, key: String) -> URL? {
+    private static func target(forKey key: String) -> URL {
         let hash = SHA256.hash(data: Data(key.utf8)).map { String(format: "%02x", $0) }.joined()
-        let target = directory.appendingPathComponent(hash).appendingPathExtension("jpg")
+        return directory.appendingPathComponent(hash).appendingPathExtension("jpg")
+    }
+
+    static func cachedFile(key: String) -> URL? {
+        let target = target(forKey: key)
+        return FileManager.default.fileExists(atPath: target.path) ? target : nil
+    }
+
+    static func cacheFile(_ source: URL, key: String) -> URL? {
+        let target = target(forKey: key)
         if FileManager.default.fileExists(atPath: target.path) { return target }
         do {
             try FileManager.default.copyItem(at: source, to: target)

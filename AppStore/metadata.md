@@ -79,11 +79,11 @@ art,paintings,gallery,artists,collect,artwork,discover,original,buy art,wall art
 
 | Field | Value |
 |---|---|
-| **Support URL** | https://chinmaylaghate.github.io/ArtistFolio/support.html |
-| **Marketing URL** | https://chinmaylaghate.github.io/ArtistFolio/ *(optional)* |
-| **Privacy Policy URL** | https://chinmaylaghate.github.io/ArtistFolio/privacy.html |
+| **Support URL** | https://artistfolioapp.com/support.html |
+| **Marketing URL** | https://artistfolioapp.com/ *(optional)* |
+| **Privacy Policy URL** | https://artistfolioapp.com/privacy.html |
 
-> ✅ All three URLs confirmed live as of 2026-11-23.
+> ✅ All three URLs confirmed live as of 2026-11-24 (artistfolioapp.com, GitHub Pages repo chinmaylaghate/artistfolio-site).
 
 ---
 

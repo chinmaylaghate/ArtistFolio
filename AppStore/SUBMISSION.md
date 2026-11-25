@@ -28,7 +28,7 @@ The version is set to **release automatically after approval**. Switch to manual
 | Content Rights | Contains third-party content, rights held |
 | Age rating | 13+ (UGC Yes, social media Yes, messaging No, web access No, age assurance No, nudity None) |
 | App Privacy | Published (table below) |
-| Privacy Policy URL | `https://chinmaylaghate.github.io/ArtistFolio/privacy.html` |
+| Privacy Policy URL | `https://artistfolioapp.com/privacy.html` |
 | Price | Free (USD 0.00) |
 | Availability | 148 countries or regions. The 27 EU countries are excluded until EU trader status is completed |
 | Description, review notes | Updated to section 3 |
