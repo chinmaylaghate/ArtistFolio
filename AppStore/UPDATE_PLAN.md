@@ -4,6 +4,8 @@ Source: "Recommended V1 scope" in the research doc [ArtistFolio Competitor Analy
 
 **Starting point:** 1.0.0 (build 8) is approved and live on the App Store (as of 2026-11-24).
 
+**Status (2026-11-24):** all of 1.1 (items 1–9) is built on `social-sharing` as version 1.1.0 (9). Release steps are in `RELEASE_1.1.md`. 1.2 has not started.
+
 **Already built, so not in the plan:** multiple photos per artwork. Upload takes up to 5 photos (`UploadView.maxPhotos`), CloudKit stores them in `Artwork.images`, and the detail page shows a swipe gallery.
 
 ## 1.1: selling tools
