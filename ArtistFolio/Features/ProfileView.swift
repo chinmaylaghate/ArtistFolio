@@ -197,6 +197,12 @@ struct ArtistProfileView: View {
     @State private var showShare = false
     @State private var showCommissionContact = false
     @State private var selectedSeries: String?
+    @StateObject private var reviewsModel: ReviewsModel
+
+    init(artistId: String) {
+        self.artistId = artistId
+        _reviewsModel = StateObject(wrappedValue: ReviewsModel(artistID: artistId))
+    }
 
     private var isSelf: Bool { artistId == appState.currentUserID }
     private var summary: ArtistSummary { ArtistSummary(artworks: artworks) }
@@ -251,6 +257,7 @@ struct ArtistProfileView: View {
             do {
                 profile = try await appState.backend.profile(ownerID: artistId)
                 artworks = try await appState.backend.artworks(ownerID: artistId)
+                await reviewsModel.load(appState)
             } catch is CancellationError {
                 return
             } catch {
@@ -269,6 +276,9 @@ struct ArtistProfileView: View {
                     Label(profile.location, systemImage: "mappin.and.ellipse")
                         .font(.subheadline)
                         .foregroundStyle(Color.afTextSecondary)
+                }
+                if profile.role == .artist {
+                    RatingLine(summary: reviewsModel.summary).font(.subheadline)
                 }
                 if !profile.bio.isEmpty {
                     Text(profile.bio).font(.body).foregroundStyle(Color.afTextSecondary).multilineTextAlignment(.center)
@@ -310,6 +320,10 @@ struct ArtistProfileView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Works in \(summary.topMediums.map(\.rawValue).joined(separator: ", "))")
+            }
+
+            if profile.role == .artist, reviewsModel.isLoaded {
+                ReviewsSection(model: reviewsModel, artistName: profile.displayName, isSelf: isSelf)
             }
 
             Text("Artworks").font(.title2.bold())

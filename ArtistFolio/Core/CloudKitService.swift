@@ -132,6 +132,8 @@ final class CloudKitService: ArtBackend {
         let artworks = try await allRecords(publicDB, query: mine, keys: [])
         try await delete(artworks.map(\.recordID), from: publicDB)
 
+        try await delete(try await myReviewIDs(owner: owner), from: publicDB)
+
         let profileQuery = CKQuery(recordType: "Profile", predicate: Self.creatorPredicate(owner))
         let profiles = try await allRecords(publicDB, query: profileQuery, keys: [])
         try await delete(profiles.map(\.recordID), from: publicDB)

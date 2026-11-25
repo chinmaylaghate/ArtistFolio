@@ -5,6 +5,7 @@ final class DemoBackend: ArtBackend {
     private var userID: String?
     private var profiles: [String: UserProfile] = [:]
     private var items: [Artwork] = []
+    private var reviewStore: [Review] = []
     private var state = UserLibrary()
     private(set) var reports: [(ReportTarget, String, ReportReason)] = []
     var failsIdentityLoads = false
@@ -45,6 +46,17 @@ final class DemoBackend: ArtBackend {
         for id in ["art-2", "art-16", "art-17"] {
             if let index = items.firstIndex(where: { $0.id == id }) { items[index].series = "Autumn Water" }
         }
+        func review(_ artist: String, _ name: String, _ rating: Int, _ relationship: ReviewRelationship, _ text: String, daysAgo: Double) -> Review {
+            Review(artistID: artist, reviewerID: "reviewer-\(name.lowercased().replacingOccurrences(of: " ", with: "-"))", reviewerName: name, rating: rating, text: text, relationship: relationship, createdAt: Date().addingTimeInterval(-daysAgo * 86_400))
+        }
+        reviewStore = [
+            review(sofia.id, "Daniel Okafor", 5, .bought, "Amber Reflections looks even better in person. Sofia packed it beautifully and kept me updated the whole way.", daysAgo: 3),
+            review(sofia.id, "Priya Nair", 5, .commissioned, "I asked for a piece in blues for our hallway. She sent sketches first and the final painting is exactly what we hoped for.", daysAgo: 12),
+            review(sofia.id, "Tom Becker", 4, .met, "Lovely to meet her at the Barcelona open studios. Friendly, and happy to talk about her process.", daysAgo: 30),
+            review(sofia.id, "Lena Fischer", 5, .bought, "Quick replies, fair price and a beautiful painting.", daysAgo: 45),
+            review(elena.id, "Marco Bianchi", 5, .bought, "The still life is stunning. Careful packing and a handwritten note.", daysAgo: 8),
+            review(elena.id, "Sarah Lewis", 4, .met, "Met Elena at a fair in Florence. Her technique up close is remarkable.", daysAgo: 20)
+        ]
         switch mode {
         case "artist": userID = sofia.id
         case "collector":
@@ -159,6 +171,29 @@ final class DemoBackend: ArtBackend {
     func artworks(ownerID: String) async throws -> [Artwork] { items.filter { $0.artistId == ownerID } }
     func artworks(ids: [String]) async throws -> [Artwork] { items.filter { ids.contains($0.id) } }
     func backfillSizeClasses() async throws -> Int { 0 }
+
+    func reviews(artistID: String) async throws -> [Review] {
+        reviewStore.filter { $0.artistID == artistID }.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    func saveReview(_ review: Review) async throws -> Review {
+        guard let userID else { throw AppError.iCloudRequired }
+        guard userID != review.artistID else { throw AppError.cannotReviewSelf }
+        guard ContentFilter.isAllowed(review.text) else { throw AppError.objectionableContent }
+        var saved = review
+        saved.reviewerID = userID
+        saved.reviewerName = profiles[userID]?.displayName ?? "You"
+        saved.text = String(review.text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Review.maxTextLength))
+        saved.createdAt = Date()
+        reviewStore.removeAll { $0.id == saved.id }
+        reviewStore.append(saved)
+        return saved
+    }
+
+    func deleteReview(artistID: String) async throws {
+        guard let userID else { throw AppError.iCloudRequired }
+        reviewStore.removeAll { $0.reviewerID == userID && $0.artistID == artistID }
+    }
     func fullImages(artworkID: String) async throws -> [URL] {
         items.first { $0.id == artworkID }?.thumbnailURL.map { [$0] } ?? []
     }
@@ -204,6 +239,7 @@ final class DemoBackend: ArtBackend {
     func deleteAccount() async throws {
         guard let userID else { throw AppError.iCloudRequired }
         items.removeAll { $0.artistId == userID }
+        reviewStore.removeAll { $0.reviewerID == userID || $0.artistID == userID }
         profiles[userID] = nil
         state = UserLibrary()
     }

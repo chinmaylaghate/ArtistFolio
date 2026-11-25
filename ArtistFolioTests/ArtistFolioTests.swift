@@ -643,3 +643,76 @@ final class AppLinkTests: XCTestCase {
         XCTAssertEqual(features?.first?.messageString, url.absoluteString)
     }
 }
+
+final class ReviewTests: XCTestCase {
+    private func review(_ rating: Int, by reviewer: String = UUID().uuidString, of artist: String = "artist-sofia") -> Review {
+        Review(artistID: artist, reviewerID: reviewer, rating: rating, text: "Great", relationship: .bought)
+    }
+
+    func testAverageNeedsThreeReviews() {
+        let two = ReviewSummary(reviews: [review(5), review(1)])
+        XCTAssertFalse(two.showsAverage)
+        XCTAssertEqual(two.countText, "2 reviews")
+        let three = ReviewSummary(reviews: [review(5), review(4), review(4)])
+        XCTAssertTrue(three.showsAverage)
+        XCTAssertEqual(three.averageText, "4.3")
+        XCTAssertEqual(ReviewSummary(reviews: [review(3)]).countText, "1 review")
+    }
+
+    func testRecordNameMeansOneReviewPerReviewerPerArtist() {
+        XCTAssertEqual(review(5, by: "_me").id, review(2, by: "_me").id)
+        XCTAssertNotEqual(review(5, by: "_me").id, review(5, by: "_me", of: "artist-elena").id)
+    }
+
+    func testMapperRoundTripsAndRejectsBadRatings() throws {
+        var draft = review(4, by: "_me")
+        draft.text = "  " + String(repeating: "a", count: 700)
+        let record = CKRecord(recordType: "Review")
+        ReviewMapper.apply(draft, to: record)
+        let mapped = try XCTUnwrap(ReviewMapper.review(from: record, reviewerID: "_me"))
+        XCTAssertEqual(mapped.rating, 4)
+        XCTAssertEqual(mapped.text.count, Review.maxTextLength)
+        record["rating"] = Int64(9)
+        XCTAssertNil(ReviewMapper.review(from: record, reviewerID: "_me"))
+    }
+
+    func testDemoSavingReplacesAndBlocksSelfReview() async throws {
+        let backend = DemoBackend(mode: "collector")
+        let before = try await backend.reviews(artistID: "artist-elena").count
+        _ = try await backend.saveReview(review(5, by: "ignored", of: "artist-elena"))
+        _ = try await backend.saveReview(review(3, by: "ignored", of: "artist-elena"))
+        let after = try await backend.reviews(artistID: "artist-elena")
+        XCTAssertEqual(after.count, before + 1, "a second review replaces the first")
+        XCTAssertEqual(after.first { $0.reviewerID == "collector-maya" }?.rating, 3)
+        XCTAssertTrue(ReviewSummary(reviews: after).showsAverage)
+
+        let artist = DemoBackend(mode: "artist")
+        do {
+            _ = try await artist.saveReview(review(5, of: "artist-sofia"))
+            XCTFail("artists can't review themselves")
+        } catch AppError.cannotReviewSelf {}
+    }
+
+    func testObjectionableReviewIsRejected() async {
+        let backend = DemoBackend(mode: "collector")
+        var bad = review(1, of: "artist-elena")
+        bad.text = "this is shit"
+        do {
+            _ = try await backend.saveReview(bad)
+            XCTFail("filtered text must not save")
+        } catch AppError.objectionableContent {} catch { XCTFail("\(error)") }
+    }
+
+    @MainActor
+    func testBlockedReviewersAreHidden() async {
+        let state = AppState(backend: DemoBackend(mode: "collector"))
+        await state.reloadSession()
+        let model = ReviewsModel(artistID: "artist-sofia")
+        await model.load(state)
+        let total = model.reviews.count
+        XCTAssertGreaterThan(total, 0)
+        state.setBlocked("reviewer-daniel-okafor", blocked: true)
+        await model.load(state)
+        XCTAssertEqual(model.reviews.count, total - 1)
+    }
+}

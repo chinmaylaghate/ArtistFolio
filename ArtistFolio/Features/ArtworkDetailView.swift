@@ -20,6 +20,7 @@ struct ArtworkDetailView: View {
     @State private var showCareGuide = false
     @State private var seriesWorks: [Artwork] = []
     @State private var showLabel = false
+    @State private var artistRating: ReviewSummary?
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -128,6 +129,9 @@ struct ArtworkDetailView: View {
             artist = try? await appState.backend.profile(ownerID: artwork.artistId)
             imageURLs = (try? await appState.backend.fullImages(artworkID: artwork.id)) ?? []
             seriesWorks = await loadSeriesWorks()
+            if let reviews = try? await appState.backend.reviews(artistID: artwork.artistId) {
+                artistRating = ReviewSummary(reviews: reviews.filter { !appState.isBlocked($0.reviewerID) })
+            }
         }
     }
 
@@ -234,7 +238,15 @@ struct ArtworkDetailView: View {
                     AvatarCircle(name: artwork.artistName, url: artist?.avatarURL, size: 44)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(artwork.artistName).font(.body.weight(.medium))
-                        Text("View profile").font(.footnote).foregroundStyle(Color.afTextSecondary)
+                        HStack(spacing: 4) {
+                            if let artistRating, artistRating.showsAverage {
+                                Image(systemName: "star.fill").foregroundStyle(Color.orange)
+                                Text("\(artistRating.averageText) (\(artistRating.count)) ·")
+                            }
+                            Text("View profile")
+                        }
+                        .font(.footnote)
+                        .foregroundStyle(Color.afTextSecondary)
                     }
                     Spacer()
                     Image(systemName: "chevron.forward")
