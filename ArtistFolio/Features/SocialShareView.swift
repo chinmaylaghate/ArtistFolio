@@ -39,12 +39,20 @@ enum ShareSubject {
 enum ShareFormatter {
     static let appStoreLink = "https://apps.apple.com/app/artistfolio/id6838094249"
 
+    /// Opens the piece or profile in the app, or the website (with an App Store link) without it.
+    static func link(for subject: ShareSubject) -> URL {
+        switch subject {
+        case .artwork(let artwork, _): return AppLink.artwork(id: artwork.id).url
+        case .artist(let profile): return AppLink.artist(id: profile.id).url
+        }
+    }
+
     static func caption(for subject: ShareSubject) -> String {
         switch subject {
         case .artwork(let artwork, _):
-            return "\(artwork.title) by \(artwork.artistName) on Artist Folio\n\(appStoreLink)"
+            return "\(artwork.title) by \(artwork.artistName) on Artist Folio\n\(link(for: subject).absoluteString)"
         case .artist(let profile):
-            return "See \(profile.displayName)'s work on Artist Folio\n\(appStoreLink)"
+            return "See \(profile.displayName)'s work on Artist Folio\n\(link(for: subject).absoluteString)"
         }
     }
 

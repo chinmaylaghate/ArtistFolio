@@ -19,6 +19,8 @@ struct ArtworkDetailView: View {
     @State private var chooseEnquiryChannel = false
     @State private var showCareGuide = false
     @State private var seriesWorks: [Artwork] = []
+    @State private var showLabel = false
+    @State private var artistRating: ReviewSummary?
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -63,6 +65,11 @@ struct ArtworkDetailView: View {
                 Button("Share", systemImage: "square.and.arrow.up") { showShare = true }
                     .tint(toolbarTint)
 
+                if isOwner {
+                    Button("QR Label", systemImage: "qrcode") { showLabel = true }
+                        .tint(toolbarTint)
+                }
+
                 if !isOwner {
                     Menu {
                         Button("Report Artwork", systemImage: "flag") { showReport = true }
@@ -91,6 +98,9 @@ struct ArtworkDetailView: View {
         .sheet(isPresented: $showShare) {
             SocialShareSheet(subject: .artwork(artwork, preferredImage: galleryURLs.indices.contains(selectedImage) ? galleryURLs[selectedImage] : nil))
         }
+        .sheet(isPresented: $showLabel) {
+            QRLabelSheet(artwork: artwork)
+        }
         .sheet(isPresented: $showCareGuide) {
             CareGuideView(highlight: artwork.medium)
         }
@@ -116,9 +126,13 @@ struct ArtworkDetailView: View {
             }
         }
         .task(id: artwork.id) {
+            appState.recordView(of: artwork)
             artist = try? await appState.backend.profile(ownerID: artwork.artistId)
             imageURLs = (try? await appState.backend.fullImages(artworkID: artwork.id)) ?? []
             seriesWorks = await loadSeriesWorks()
+            if let reviews = try? await appState.backend.reviews(artistID: artwork.artistId) {
+                artistRating = ReviewSummary(reviews: reviews.filter { !appState.isBlocked($0.reviewerID) })
+            }
         }
     }
 
@@ -219,13 +233,24 @@ struct ArtworkDetailView: View {
 
             listingHeader
             priceCard
+            if CountDisplay.showsArtworkStats(artwork, isOwner: isOwner) {
+                statsRow
+            }
 
             NavigationLink(value: ArtistLink(id: artwork.artistId)) {
                 HStack(spacing: AFSpacing.sm) {
                     AvatarCircle(name: artwork.artistName, url: artist?.avatarURL, size: 44)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(artwork.artistName).font(.body.weight(.medium))
-                        Text("View profile").font(.footnote).foregroundStyle(Color.afTextSecondary)
+                        HStack(spacing: 4) {
+                            if let artistRating, artistRating.showsAverage {
+                                Image(systemName: "star.fill").foregroundStyle(Color.orange)
+                                Text("\(artistRating.averageText) (\(artistRating.count)) ·")
+                            }
+                            Text("View profile")
+                        }
+                        .font(.footnote)
+                        .foregroundStyle(Color.afTextSecondary)
                     }
                     Spacer()
                     Image(systemName: "chevron.forward")
@@ -434,6 +459,20 @@ struct ArtworkDetailView: View {
         .padding(.vertical, 14)
         .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
         .accessibilityElement(children: .contain)
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: AFSpacing.md) {
+            Label("\(CountDisplay.compact(artwork.viewCount)) \(artwork.viewCount == 1 ? "view" : "views")", systemImage: "eye")
+            Label("\(CountDisplay.compact(artwork.likeCount)) \(artwork.likeCount == 1 ? "save" : "saves")", systemImage: "heart")
+            if isOwner {
+                Spacer()
+                Text("Updated hourly").foregroundStyle(Color.afTextSecondary.opacity(0.8))
+            }
+        }
+        .font(.footnote.weight(.medium))
+        .foregroundStyle(Color.afTextSecondary)
+        .accessibilityElement(children: .combine)
     }
 
     /// Offers and price questions go by email or WhatsApp, whichever the artist listed.

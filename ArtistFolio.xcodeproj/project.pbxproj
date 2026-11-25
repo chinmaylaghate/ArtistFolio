@@ -27,6 +27,11 @@
 		C0000106 /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000107 /* ProfileService.swift */; };
 		C0000108 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000109 /* ArtworkService.swift */; };
 		C00009A0 /* CareGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00009A1 /* CareGuide.swift */; };
+		C00009A2 /* AppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00009A3 /* AppLink.swift */; };
+		C00009A6 /* ReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00009A7 /* ReviewService.swift */; };
+		C00009AA /* CountsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00009AB /* CountsService.swift */; };
+		C00009A4 /* QRLabelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00009A5 /* QRLabelView.swift */; };
+		C00009A8 /* ReviewsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00009A9 /* ReviewsView.swift */; };
 		C000010A /* LibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C000010B /* LibraryService.swift */; };
 		C000010C /* CloudImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C000010D /* CloudImage.swift */; };
 		C000010E /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C000010F /* ProfileEditorView.swift */; };
@@ -63,6 +68,11 @@
 		C0000107 /* ProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileService.swift; sourceTree = "<group>"; };
 		C0000109 /* ArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkService.swift; sourceTree = "<group>"; };
 		C00009A1 /* CareGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareGuide.swift; sourceTree = "<group>"; };
+		C00009A3 /* AppLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLink.swift; sourceTree = "<group>"; };
+		C00009A7 /* ReviewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewService.swift; sourceTree = "<group>"; };
+		C00009AB /* CountsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountsService.swift; sourceTree = "<group>"; };
+		C00009A5 /* QRLabelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRLabelView.swift; sourceTree = "<group>"; };
+		C00009A9 /* ReviewsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewsView.swift; sourceTree = "<group>"; };
 		C000010B /* LibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryService.swift; sourceTree = "<group>"; };
 		C000010D /* CloudImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudImage.swift; sourceTree = "<group>"; };
 		C000010F /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
@@ -145,6 +155,9 @@
 				C0000107 /* ProfileService.swift */,
 				C0000109 /* ArtworkService.swift */,
 				C00009A1 /* CareGuide.swift */,
+				C00009A3 /* AppLink.swift */,
+				C00009A7 /* ReviewService.swift */,
+				C00009AB /* CountsService.swift */,
 				C000010B /* LibraryService.swift */,
 				C000010D /* CloudImage.swift */,
 				B001000F /* Models.swift */,
@@ -158,6 +171,8 @@
 			children = (
 				C000010F /* ProfileEditorView.swift */,
 				C0000111 /* StudioView.swift */,
+				C00009A5 /* QRLabelView.swift */,
+				C00009A9 /* ReviewsView.swift */,
 				C0000113 /* SavedView.swift */,
 				C0000115 /* ProfileView.swift */,
 				B0010015 /* SplashView.swift */,
@@ -312,6 +327,11 @@
 				C0000106 /* ProfileService.swift in Sources */,
 				C0000108 /* ArtworkService.swift in Sources */,
 				C00009A0 /* CareGuide.swift in Sources */,
+				C00009A2 /* AppLink.swift in Sources */,
+				C00009A6 /* ReviewService.swift in Sources */,
+				C00009AA /* CountsService.swift in Sources */,
+				C00009A4 /* QRLabelView.swift in Sources */,
+				C00009A8 /* ReviewsView.swift in Sources */,
 				C000010A /* LibraryService.swift in Sources */,
 				C000010C /* CloudImage.swift in Sources */,
 				C000010E /* ProfileEditorView.swift in Sources */,
@@ -467,7 +487,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.artistfolio.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -495,7 +515,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.artistfolio.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -512,7 +532,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.artistfolio.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.9;
@@ -529,7 +549,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.artistfolio.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.9;

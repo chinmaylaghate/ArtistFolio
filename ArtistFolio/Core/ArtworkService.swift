@@ -5,7 +5,7 @@ enum ArtworkMapper {
     static let listKeys: [CKRecord.FieldKey] = [
         "title", "details", "price", "status", "medium", "style",
         "width", "height", "unit", "year", "tags", "thumbnail", "priceOnRequest",
-        "careNote", "showCareTips", "series"
+        "careNote", "showCareTips", "series", "viewCount", "likeCount"
     ]
 
     static func artwork(from record: CKRecord, ownerID: String, thumbnailURL: URL?) -> Artwork? {
@@ -36,7 +36,9 @@ enum ArtworkMapper {
             careNote: record["careNote"] as? String ?? "",
             // Listings saved before 1.1 have no value; show the standard tips for them.
             showCareTips: (record["showCareTips"] as? Int64 ?? 1) == 1,
-            series: record["series"] as? String ?? ""
+            series: record["series"] as? String ?? "",
+            viewCount: Int(record["viewCount"] as? Int64 ?? 0),
+            likeCount: Int(record["likeCount"] as? Int64 ?? 0)
         )
     }
 

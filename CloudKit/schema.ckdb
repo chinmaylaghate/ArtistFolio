@@ -29,6 +29,7 @@ DEFINE SCHEMA
         phone              STRING,
         whatsapp           STRING,
         acceptsCommissions INT64,
+        followerCount      INT64,
         avatar             ASSET,
         searchTokens       LIST<STRING> QUERYABLE,
         GRANT WRITE TO "_creator",
@@ -51,6 +52,8 @@ DEFINE SCHEMA
         showCareTips    INT64,
         series          STRING QUERYABLE,
         sizeClass       STRING QUERYABLE,
+        viewCount       INT64,
+        likeCount       INT64,
         status          STRING QUERYABLE,
         medium          STRING QUERYABLE,
         style           STRING QUERYABLE,
@@ -79,6 +82,61 @@ DEFINE SCHEMA
         reason          STRING,
         note            STRING,
         GRANT CREATE TO "_icloud"
+    );
+
+    RECORD TYPE Review (
+        "___createTime" TIMESTAMP QUERYABLE SORTABLE,
+        "___createdBy"  REFERENCE QUERYABLE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        artistID        STRING QUERYABLE,
+        rating          INT64,
+        text            STRING,
+        relationship    STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE ArtworkLike (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE QUERYABLE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        targetID        STRING QUERYABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE ArtistFollow (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE QUERYABLE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        targetID        STRING QUERYABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE ArtworkView (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE QUERYABLE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        targetID        STRING QUERYABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
     );
 
     RECORD TYPE SavedArtwork (

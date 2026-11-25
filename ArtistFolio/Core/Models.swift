@@ -144,6 +144,9 @@ struct Artwork: Identifiable, Hashable {
     var showCareTips: Bool = true
     /// Optional name of the series this piece belongs to.
     var series: String = ""
+    /// Distinct signed-in viewers and savers, counted by the artist's app (see `refreshCounts`).
+    var viewCount: Int = 0
+    var likeCount: Int = 0
 
     static let maxSeriesLength = 60
 
@@ -273,7 +276,52 @@ enum LibraryKind: String, CaseIterable {
 }
 
 enum ReportTarget: String {
-    case artwork, artist
+    case artwork, artist, review
+}
+
+enum ReviewRelationship: String, CaseIterable, Identifiable {
+    case bought = "Bought a piece"
+    case commissioned = "Commissioned work"
+    case met = "Met at a show or studio"
+    var id: String { rawValue }
+}
+
+/// A collector's review of an artist. One per reviewer per artist: a second review replaces the first.
+struct Review: Identifiable, Hashable {
+    var artistID: String
+    var reviewerID: String
+    var reviewerName: String = ""
+    var rating: Int
+    var text: String
+    var relationship: ReviewRelationship
+    var createdAt: Date = Date()
+
+    static let maxTextLength = 500
+    static let ratingRange = 1...5
+
+    var id: String { Self.recordName(reviewerID: reviewerID, artistID: artistID) }
+
+    static func recordName(reviewerID: String, artistID: String) -> String {
+        "review_\(reviewerID)_\(artistID)"
+    }
+}
+
+/// The rating shown for an artist. The average appears only once there are enough reviews
+/// that one unfair review can't define a profile.
+struct ReviewSummary: Equatable {
+    static let minimumForAverage = 3
+
+    let count: Int
+    let average: Double
+
+    init(reviews: [Review]) {
+        count = reviews.count
+        average = reviews.isEmpty ? 0 : Double(reviews.map(\.rating).reduce(0, +)) / Double(reviews.count)
+    }
+
+    var showsAverage: Bool { count >= Self.minimumForAverage }
+    var averageText: String { String(format: "%.1f", average) }
+    var countText: String { count == 1 ? "1 review" : "\(count) reviews" }
 }
 
 enum ReportReason: String, CaseIterable, Identifiable {
@@ -292,6 +340,7 @@ enum AppError: LocalizedError {
     case invalidImage
     case notOwner
     case accountUnavailable
+    case cannotReviewSelf
 
     var errorDescription: String? {
         switch self {
@@ -300,6 +349,7 @@ enum AppError: LocalizedError {
         case .invalidImage: return "That photo could not be processed. Try another one."
         case .notOwner: return "You can only change your own work."
         case .accountUnavailable: return "We couldn't load your account. Check your connection and try again."
+        case .cannotReviewSelf: return "You can't review your own profile."
         }
     }
 }
@@ -313,6 +363,18 @@ protocol ArtBackend: AnyObject {
     func artworks(filters: ArtworkFilters, cursor: CKQueryOperation.Cursor?) async throws -> ArtworkPage
     func artworks(ownerID: String) async throws -> [Artwork]
     func artworks(ids: [String]) async throws -> [Artwork]
+    /// Reviews of an artist, newest first, with reviewer names filled in.
+    func reviews(artistID: String) async throws -> [Review]
+    /// Creates or replaces the signed-in user's review of an artist.
+    func saveReview(_ review: Review) async throws -> Review
+    /// Deletes the signed-in user's review of an artist.
+    func deleteReview(artistID: String) async throws
+    /// Notes that the signed-in user opened an artwork (one record per user per artwork).
+    func recordView(artworkID: String) async throws
+    /// Publishes public copies of saves and follows made before counts existed.
+    func mirrorPublicLibrary(_ library: UserLibrary) async throws
+    /// Recounts the signed-in artist's views, likes and followers and saves the totals.
+    func refreshCounts() async throws
     /// Fills in the stored size band on the signed-in artist's older listings. Returns how many were updated.
     func backfillSizeClasses() async throws -> Int
     func fullImages(artworkID: String) async throws -> [URL]
@@ -338,8 +400,12 @@ struct ArtistSummary: Equatable {
     /// The card needs at least two facts to be worth showing.
     var showsCard: Bool { stats.count >= 2 }
 
-    init(artworks: [Artwork]) {
+    /// Followers lead once there are enough of them; the card keeps at most three facts.
+    init(artworks: [Artwork], followerCount: Int = 0) {
         var stats: [Stat] = []
+        if followerCount >= CountDisplay.minimumFollowers {
+            stats.append(Stat(value: CountDisplay.compact(followerCount), label: "Followers"))
+        }
         if !artworks.isEmpty {
             stats.append(Stat(value: String(artworks.count), label: artworks.count == 1 ? "Work" : "Works"))
         }
@@ -351,7 +417,7 @@ struct ArtistSummary: Equatable {
         if let lowest = prices.min() {
             stats.append(Stat(value: Self.compactPrice(lowest), label: "From"))
         }
-        self.stats = stats
+        self.stats = Array(stats.prefix(3))
 
         var counts: [ArtworkMedium: Int] = [:]
         for artwork in artworks { counts[artwork.medium, default: 0] += 1 }

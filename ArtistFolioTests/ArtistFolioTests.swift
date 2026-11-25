@@ -331,7 +331,7 @@ final class ShareFormatterTests: XCTestCase {
     func testCaptionNamesArtworkWithoutPrice() {
         let caption = ShareFormatter.caption(for: .artwork(artwork(), preferredImage: nil))
         XCTAssertTrue(caption.contains("Blue Study by Ana Ruiz"))
-        XCTAssertTrue(caption.contains(ShareFormatter.appStoreLink))
+        XCTAssertTrue(caption.contains("https://artistfolioapp.com/a/"))
         XCTAssertFalse(caption.contains("1,250"))
     }
 
@@ -596,5 +596,173 @@ final class SeriesAndSizeTests: XCTestCase {
         let page = try await backend.artworks(filters: filters, cursor: nil)
         XCTAssertFalse(page.items.isEmpty)
         XCTAssertTrue(page.items.allSatisfy { $0.dimensions.sizeClass == .large })
+    }
+}
+
+final class AppLinkTests: XCTestCase {
+    func testLinksRoundTrip() {
+        for link in [AppLink.artwork(id: "6F1C2A9E-0B7D-4E21-9C55-3A1B2C3D4E5F"), .artist(id: "_a1b2c3d4e5f6")] {
+            XCTAssertEqual(AppLink(url: link.url), link)
+        }
+        XCTAssertEqual(AppLink.artwork(id: "abc").url.absoluteString, "https://artistfolioapp.com/a/abc")
+    }
+
+    func testParsingAcceptsWwwAndTrailingSlash() {
+        XCTAssertEqual(AppLink(url: URL(string: "https://www.artistfolioapp.com/a/abc/")!), .artwork(id: "abc"))
+        XCTAssertEqual(AppLink(url: URL(string: "https://ArtistFolioApp.com/artist/_xyz")!), .artist(id: "_xyz"))
+    }
+
+    func testParsingRejectsOtherLinks() {
+        for text in ["http://artistfolioapp.com/a/abc", "https://evil.com/a/abc", "https://artistfolioapp.com/privacy.html",
+                     "https://artistfolioapp.com/a/", "https://artistfolioapp.com/a/abc/extra", "https://artistfolioapp.com/a/ab%20c"] {
+            XCTAssertNil(AppLink(url: URL(string: text)!), text)
+        }
+    }
+
+    func testOpenSetsLinkOnlyForKnownLinks() async {
+        let state = await AppState(backend: DemoBackend(mode: "collector"))
+        let opened = await state.open(URL(string: "https://artistfolioapp.com/a/art-2")!)
+        XCTAssertTrue(opened)
+        let link = await state.openedLink
+        XCTAssertEqual(link, .artwork(id: "art-2"))
+        let ignored = await state.open(URL(string: "https://example.com")!)
+        XCTAssertFalse(ignored)
+    }
+
+    func testShareCaptionUsesArtistLink() {
+        let profile = UserProfile(id: "_abc", displayName: "Ana Ruiz", role: .artist)
+        XCTAssertTrue(ShareFormatter.caption(for: .artist(profile)).contains("https://artistfolioapp.com/artist/_abc"))
+    }
+
+    func testQRCodeEncodesTheLink() throws {
+        let url = AppLink.artwork(id: "art-2").url
+        let image = try XCTUnwrap(QRCode.image(for: url))
+        XCTAssertGreaterThanOrEqual(image.size.width, 500)
+        let detector = try XCTUnwrap(CIDetector(ofType: CIDetectorTypeQRCode, context: nil, options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]))
+        let features = detector.features(in: try XCTUnwrap(CIImage(image: image))) as? [CIQRCodeFeature]
+        XCTAssertEqual(features?.first?.messageString, url.absoluteString)
+    }
+}
+
+final class ReviewTests: XCTestCase {
+    private func review(_ rating: Int, by reviewer: String = UUID().uuidString, of artist: String = "artist-sofia") -> Review {
+        Review(artistID: artist, reviewerID: reviewer, rating: rating, text: "Great", relationship: .bought)
+    }
+
+    func testAverageNeedsThreeReviews() {
+        let two = ReviewSummary(reviews: [review(5), review(1)])
+        XCTAssertFalse(two.showsAverage)
+        XCTAssertEqual(two.countText, "2 reviews")
+        let three = ReviewSummary(reviews: [review(5), review(4), review(4)])
+        XCTAssertTrue(three.showsAverage)
+        XCTAssertEqual(three.averageText, "4.3")
+        XCTAssertEqual(ReviewSummary(reviews: [review(3)]).countText, "1 review")
+    }
+
+    func testRecordNameMeansOneReviewPerReviewerPerArtist() {
+        XCTAssertEqual(review(5, by: "_me").id, review(2, by: "_me").id)
+        XCTAssertNotEqual(review(5, by: "_me").id, review(5, by: "_me", of: "artist-elena").id)
+    }
+
+    func testMapperRoundTripsAndRejectsBadRatings() throws {
+        var draft = review(4, by: "_me")
+        draft.text = "  " + String(repeating: "a", count: 700)
+        let record = CKRecord(recordType: "Review")
+        ReviewMapper.apply(draft, to: record)
+        let mapped = try XCTUnwrap(ReviewMapper.review(from: record, reviewerID: "_me"))
+        XCTAssertEqual(mapped.rating, 4)
+        XCTAssertEqual(mapped.text.count, Review.maxTextLength)
+        record["rating"] = Int64(9)
+        XCTAssertNil(ReviewMapper.review(from: record, reviewerID: "_me"))
+    }
+
+    func testDemoSavingReplacesAndBlocksSelfReview() async throws {
+        let backend = DemoBackend(mode: "collector")
+        let before = try await backend.reviews(artistID: "artist-elena").count
+        _ = try await backend.saveReview(review(5, by: "ignored", of: "artist-elena"))
+        _ = try await backend.saveReview(review(3, by: "ignored", of: "artist-elena"))
+        let after = try await backend.reviews(artistID: "artist-elena")
+        XCTAssertEqual(after.count, before + 1, "a second review replaces the first")
+        XCTAssertEqual(after.first { $0.reviewerID == "collector-maya" }?.rating, 3)
+        XCTAssertTrue(ReviewSummary(reviews: after).showsAverage)
+
+        let artist = DemoBackend(mode: "artist")
+        do {
+            _ = try await artist.saveReview(review(5, of: "artist-sofia"))
+            XCTFail("artists can't review themselves")
+        } catch AppError.cannotReviewSelf {}
+    }
+
+    func testObjectionableReviewIsRejected() async {
+        let backend = DemoBackend(mode: "collector")
+        var bad = review(1, of: "artist-elena")
+        bad.text = "this is shit"
+        do {
+            _ = try await backend.saveReview(bad)
+            XCTFail("filtered text must not save")
+        } catch AppError.objectionableContent {} catch { XCTFail("\(error)") }
+    }
+
+    @MainActor
+    func testBlockedReviewersAreHidden() async {
+        let state = AppState(backend: DemoBackend(mode: "collector"))
+        await state.reloadSession()
+        let model = ReviewsModel(artistID: "artist-sofia")
+        await model.load(state)
+        let total = model.reviews.count
+        XCTAssertGreaterThan(total, 0)
+        state.setBlocked("reviewer-daniel-okafor", blocked: true)
+        await model.load(state)
+        XCTAssertEqual(model.reviews.count, total - 1)
+    }
+}
+
+final class CountTests: XCTestCase {
+    private func art(views: Int, likes: Int) -> Artwork {
+        var art = Artwork(id: "a1", artistId: "o", title: "T", details: "", price: 10, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 1, height: 1, unit: "cm"), year: 2026)
+        art.viewCount = views
+        art.likeCount = likes
+        return art
+    }
+
+    func testCompactNumbers() {
+        XCTAssertEqual(CountDisplay.compact(980), "980")
+        XCTAssertEqual(CountDisplay.compact(1830), "1.8K")
+        XCTAssertEqual(CountDisplay.compact(12_400), "12K")
+        XCTAssertEqual(CountDisplay.compact(2_000), "2K")
+        XCTAssertEqual(CountDisplay.compact(1_250_000), "1.3M")
+    }
+
+    func testBuyersSeeStatsOnlyAboveThresholds() {
+        XCTAssertFalse(CountDisplay.showsArtworkStats(art(views: 24, likes: 4), isOwner: false))
+        XCTAssertTrue(CountDisplay.showsArtworkStats(art(views: 25, likes: 0), isOwner: false))
+        XCTAssertTrue(CountDisplay.showsArtworkStats(art(views: 0, likes: 5), isOwner: false))
+        XCTAssertTrue(CountDisplay.showsArtworkStats(art(views: 3, likes: 0), isOwner: true))
+        XCTAssertFalse(CountDisplay.showsArtworkStats(art(views: 0, likes: 0), isOwner: true))
+    }
+
+    func testCountsAreReadFromRecords() throws {
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(art(views: 0, likes: 0), to: record)
+        XCTAssertNil(record["viewCount"], "editing a listing must not overwrite counts")
+        record["viewCount"] = Int64(1830)
+        record["likeCount"] = Int64(142)
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "o", thumbnailURL: nil))
+        XCTAssertEqual(mapped.viewCount, 1830)
+        XCTAssertEqual(mapped.likeCount, 142)
+    }
+
+    func testFollowersLeadTheSummaryOnceThereAreEnough() {
+        let works = [art(views: 0, likes: 0)]
+        XCTAssertEqual(ArtistSummary(artworks: works, followerCount: 4).stats.first?.label, "Work")
+        let summary = ArtistSummary(artworks: works, followerCount: 2340)
+        XCTAssertEqual(summary.stats.first?.value, "2.3K")
+        XCTAssertLessThanOrEqual(summary.stats.count, 3)
+    }
+
+    func testPublicActivityRecordNamesAreOnePerUser() {
+        XCTAssertEqual(PublicActivity.recordName(type: PublicActivity.likeType, userID: "_u", targetID: "a1"), "like__u_a1")
+        XCTAssertEqual(PublicActivity.recordType(for: .following), PublicActivity.followType)
+        XCTAssertNil(PublicActivity.recordType(for: .blocked), "blocks stay private")
     }
 }
