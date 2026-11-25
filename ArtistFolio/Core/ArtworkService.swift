@@ -4,7 +4,8 @@ import Foundation
 enum ArtworkMapper {
     static let listKeys: [CKRecord.FieldKey] = [
         "title", "details", "price", "status", "medium", "style",
-        "width", "height", "unit", "year", "tags", "thumbnail", "priceOnRequest"
+        "width", "height", "unit", "year", "tags", "thumbnail", "priceOnRequest",
+        "careNote", "showCareTips"
     ]
 
     static func artwork(from record: CKRecord, ownerID: String, thumbnailURL: URL?) -> Artwork? {
@@ -31,7 +32,10 @@ enum ArtworkMapper {
             tags: record["tags"] as? [String] ?? [],
             thumbnailURL: thumbnailURL,
             createdAt: record.creationDate ?? Date(),
-            priceOnRequest: (record["priceOnRequest"] as? Int64 ?? 0) == 1
+            priceOnRequest: (record["priceOnRequest"] as? Int64 ?? 0) == 1,
+            careNote: record["careNote"] as? String ?? "",
+            // Listings saved before 1.1 have no value; show the standard tips for them.
+            showCareTips: (record["showCareTips"] as? Int64 ?? 1) == 1
         )
     }
 
@@ -40,6 +44,8 @@ enum ArtworkMapper {
         record["details"] = artwork.details
         record["price"] = artwork.priceOnRequest ? 0 : artwork.price
         record["priceOnRequest"] = Int64(artwork.priceOnRequest ? 1 : 0)
+        record["careNote"] = CareGuide.cleanNote(artwork.careNote)
+        record["showCareTips"] = Int64(artwork.showCareTips ? 1 : 0)
         record["status"] = artwork.status.rawValue
         record["medium"] = artwork.medium.rawValue
         record["style"] = artwork.style.rawValue
@@ -123,7 +129,7 @@ extension CloudKitService {
 
     func saveArtwork(_ artwork: Artwork, images: [ProcessedImage]?) async throws -> Artwork {
         let owner = try await requireUserID()
-        guard ContentFilter.isAllowed([artwork.title, artwork.details] + artwork.tags) else {
+        guard ContentFilter.isAllowed([artwork.title, artwork.details, artwork.careNote] + artwork.tags) else {
             throw AppError.objectionableContent
         }
         let id = CKRecord.ID(recordName: artwork.id)

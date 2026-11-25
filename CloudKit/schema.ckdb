@@ -47,6 +47,8 @@ DEFINE SCHEMA
         details         STRING,
         price           DOUBLE QUERYABLE SORTABLE,
         priceOnRequest  INT64,
+        careNote        STRING,
+        showCareTips    INT64,
         status          STRING QUERYABLE,
         medium          STRING QUERYABLE,
         style           STRING QUERYABLE,

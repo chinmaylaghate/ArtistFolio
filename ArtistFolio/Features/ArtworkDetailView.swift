@@ -17,6 +17,7 @@ struct ArtworkDetailView: View {
     @State private var showOffer = false
     @State private var openFailed = false
     @State private var chooseEnquiryChannel = false
+    @State private var showCareGuide = false
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -88,6 +89,9 @@ struct ArtworkDetailView: View {
         }
         .sheet(isPresented: $showShare) {
             SocialShareSheet(subject: .artwork(artwork, preferredImage: galleryURLs.indices.contains(selectedImage) ? galleryURLs[selectedImage] : nil))
+        }
+        .sheet(isPresented: $showCareGuide) {
+            CareGuideView(highlight: artwork.medium)
         }
         .sheet(isPresented: $showOffer) {
             OfferSheet(artwork: artwork, artistName: artwork.artistName, channels: buyerChannels)
@@ -257,6 +261,8 @@ struct ArtworkDetailView: View {
                 .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
             }
 
+            careSection
+
             if !artwork.tags.isEmpty {
                 FlowLayout(spacing: AFSpacing.xs) {
                     ForEach(artwork.tags, id: \.self) { tag in
@@ -297,6 +303,59 @@ struct ArtworkDetailView: View {
             FlowLayout(spacing: AFSpacing.xs) {
                 ListingChip(status: artwork.status)
                 ListingChip(text: artwork.style.rawValue)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var careSection: some View {
+        let note = artwork.careNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !note.isEmpty || artwork.showCareTips {
+            VStack(alignment: .leading, spacing: AFSpacing.xs) {
+                HStack {
+                    Text("Caring for this piece").font(.headline)
+                    Spacer()
+                    ListingChip(text: artwork.medium.rawValue)
+                }
+                if !note.isEmpty {
+                    VStack(alignment: .leading, spacing: AFSpacing.xxs) {
+                        Text("From \(artistFirstName)")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color.afPrimary)
+                        Text(note).font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(AFSpacing.md)
+                    .background(Color.afPrimary.opacity(0.07), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+                    .accessibilityElement(children: .combine)
+                }
+                if artwork.showCareTips {
+                    VStack(alignment: .leading, spacing: AFSpacing.sm) {
+                        ForEach(CareGuide.tips(for: artwork.medium)) { tip in
+                            Label {
+                                Text(tip.text).font(.subheadline)
+                            } icon: {
+                                Image(systemName: tip.icon)
+                                    .foregroundStyle(Color.afIconSecondary)
+                                    .frame(width: 24)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(AFSpacing.md)
+                    .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+                }
+                Button { showCareGuide = true } label: {
+                    Label("Read the full care guide", systemImage: "chevron.forward")
+                        .labelStyle(TrailingIconLabelStyle())
+                        .font(.subheadline.weight(.medium))
+                }
+                .tint(Color.afPrimary)
+                if artwork.showCareTips {
+                    Text("General tips for \(artwork.medium.rawValue.lowercased()).\(note.isEmpty ? "" : " Follow the artist\u{2019}s note first.")")
+                        .font(.footnote)
+                        .foregroundStyle(Color.afTextSecondary)
+                }
             }
         }
     }
@@ -760,5 +819,52 @@ private struct OfferSheet: View {
             .onAppear { amountFocused = true }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+private struct TrailingIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.title
+            configuration.icon.imageScale(.small)
+        }
+    }
+}
+
+/// Care tips for every medium, with the listing's medium first.
+struct CareGuideView: View {
+    @Environment(\.dismiss) private var dismiss
+    let highlight: ArtworkMedium?
+
+    private var mediums: [ArtworkMedium] {
+        guard let highlight else { return ArtworkMedium.allCases }
+        return [highlight] + ArtworkMedium.allCases.filter { $0 != highlight }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("General advice for looking after original art. If the artist gave their own care note, follow that first.")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.afTextSecondary)
+                }
+                ForEach(mediums) { medium in
+                    Section(medium.rawValue) {
+                        ForEach(CareGuide.tips(for: medium)) { tip in
+                            Label(tip.text, systemImage: tip.icon)
+                                .font(.subheadline)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Care Guide")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }

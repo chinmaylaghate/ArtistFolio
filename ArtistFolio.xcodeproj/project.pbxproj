@@ -26,6 +26,7 @@
 		C0000104 /* CloudKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000105 /* CloudKitService.swift */; };
 		C0000106 /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000107 /* ProfileService.swift */; };
 		C0000108 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0000109 /* ArtworkService.swift */; };
+		C00009A0 /* CareGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00009A1 /* CareGuide.swift */; };
 		C000010A /* LibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C000010B /* LibraryService.swift */; };
 		C000010C /* CloudImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C000010D /* CloudImage.swift */; };
 		C000010E /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C000010F /* ProfileEditorView.swift */; };
@@ -61,6 +62,7 @@
 		C0000105 /* CloudKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitService.swift; sourceTree = "<group>"; };
 		C0000107 /* ProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileService.swift; sourceTree = "<group>"; };
 		C0000109 /* ArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkService.swift; sourceTree = "<group>"; };
+		C00009A1 /* CareGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareGuide.swift; sourceTree = "<group>"; };
 		C000010B /* LibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryService.swift; sourceTree = "<group>"; };
 		C000010D /* CloudImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudImage.swift; sourceTree = "<group>"; };
 		C000010F /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
@@ -142,6 +144,7 @@
 				C0000105 /* CloudKitService.swift */,
 				C0000107 /* ProfileService.swift */,
 				C0000109 /* ArtworkService.swift */,
+				C00009A1 /* CareGuide.swift */,
 				C000010B /* LibraryService.swift */,
 				C000010D /* CloudImage.swift */,
 				B001000F /* Models.swift */,
@@ -308,6 +311,7 @@
 				C0000104 /* CloudKitService.swift in Sources */,
 				C0000106 /* ProfileService.swift in Sources */,
 				C0000108 /* ArtworkService.swift in Sources */,
+				C00009A0 /* CareGuide.swift in Sources */,
 				C000010A /* LibraryService.swift in Sources */,
 				C000010C /* CloudImage.swift in Sources */,
 				C000010E /* ProfileEditorView.swift in Sources */,

@@ -39,6 +39,9 @@ final class DemoBackend: ArtBackend {
             Self.art("art-14", james, "Fantails", 380, .watercolor, .realism, cm(32, 40), status: .sold),
             Self.art("art-6", elena, "The Gothic Porch", 650, .watercolor, .realism, cm(39, 60))
         ]
+        if let index = items.firstIndex(where: { $0.id == "art-2" }) {
+            items[index].careNote = "Varnished with a UV gloss. Wipe the frame only; the surface needs no cleaning."
+        }
         switch mode {
         case "artist": userID = sofia.id
         case "collector":
@@ -157,7 +160,7 @@ final class DemoBackend: ArtBackend {
 
     func saveArtwork(_ artwork: Artwork, images: [ProcessedImage]?) async throws -> Artwork {
         guard let userID, let profile = profiles[userID] else { throw AppError.iCloudRequired }
-        guard ContentFilter.isAllowed([artwork.title, artwork.details] + artwork.tags) else { throw AppError.objectionableContent }
+        guard ContentFilter.isAllowed([artwork.title, artwork.details, artwork.careNote] + artwork.tags) else { throw AppError.objectionableContent }
         guard artwork.artistId.isEmpty || artwork.artistId == userID else { throw AppError.notOwner }
         var output = artwork
         output.artistId = userID

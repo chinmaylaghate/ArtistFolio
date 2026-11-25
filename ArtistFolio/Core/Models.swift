@@ -115,6 +115,10 @@ struct Artwork: Identifiable, Hashable {
     var createdAt: Date = Date()
     /// The artist hides the price; buyers ask for it. `price` is stored as 0.
     var priceOnRequest: Bool = false
+    /// The artist's own care advice, shown above the standard tips.
+    var careNote: String = ""
+    /// Whether to show the standard care tips for the medium.
+    var showCareTips: Bool = true
 
     var priceText: String {
         if priceOnRequest { return "Price on request" }

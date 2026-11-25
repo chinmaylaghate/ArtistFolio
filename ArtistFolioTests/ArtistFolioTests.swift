@@ -524,3 +524,35 @@ final class ArtistSummaryTests: XCTestCase {
         XCTAssertEqual(ArtistSummary.compactPrice(15500), "$16K")
     }
 }
+
+final class CareGuideTests: XCTestCase {
+    func testEveryMediumHasFourTips() {
+        for medium in ArtworkMedium.allCases {
+            let tips = CareGuide.tips(for: medium)
+            XCTAssertEqual(tips.count, 4, medium.rawValue)
+            XCTAssertEqual(Set(tips.map(\.text)).count, 4, "duplicate tip for \(medium.rawValue)")
+        }
+    }
+
+    func testCareFieldsRoundTripAndNoteIsCapped() throws {
+        var art = Artwork(id: "a1", artistId: "o", title: "T", details: "", price: 10, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 1, height: 1, unit: "cm"), year: 2026)
+        art.careNote = "  " + String(repeating: "v", count: 400) + "  "
+        art.showCareTips = false
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(art, to: record)
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "o", thumbnailURL: nil))
+        XCTAssertEqual(mapped.careNote.count, CareGuide.maxNoteLength)
+        XCTAssertFalse(mapped.showCareTips)
+    }
+
+    func testOlderListingsShowStandardTips() throws {
+        let art = Artwork(id: "a1", artistId: "o", title: "T", details: "", price: 10, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 1, height: 1, unit: "cm"), year: 2026)
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(art, to: record)
+        record["showCareTips"] = nil
+        record["careNote"] = nil
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "o", thumbnailURL: nil))
+        XCTAssertTrue(mapped.showCareTips)
+        XCTAssertEqual(mapped.careNote, "")
+    }
+}

@@ -21,6 +21,8 @@ struct ArtworkEditorView: View {
     @State private var year = String(Calendar.current.component(.year, from: Date()))
     @State private var price = ""
     @State private var priceOnRequest = false
+    @State private var careNote = ""
+    @State private var showCareTips = true
     @State private var tags = ""
     @State private var isProcessing = false
     @State private var isSaving = false
@@ -112,6 +114,26 @@ struct ArtworkEditorView: View {
                     } else {
                         Text("Separate tags with commas.")
                     }
+                }
+
+                Section {
+                    Toggle(isOn: $showCareTips) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Show standard care tips")
+                            Text("\(CareGuide.tips(for: medium).count) tips for \(medium.rawValue), based on the medium")
+                                .font(.footnote)
+                                .foregroundStyle(Color.afTextSecondary)
+                        }
+                    }
+                    TextField("Your care note (optional)", text: $careNote, axis: .vertical)
+                        .lineLimit(2...5)
+                        .onChange(of: careNote) { _, value in
+                            if value.count > CareGuide.maxNoteLength { careNote = String(value.prefix(CareGuide.maxNoteLength)) }
+                        }
+                } header: {
+                    Text("Care")
+                } footer: {
+                    Text("Buyers see your note above the standard tips, for example how it\u{2019}s varnished or framed. Up to \(CareGuide.maxNoteLength) characters.")
                 }
 
                 if existing != nil {
@@ -226,6 +248,8 @@ struct ArtworkEditorView: View {
         unit = existing.dimensions.unit
         year = String(existing.year)
         priceOnRequest = existing.priceOnRequest
+        careNote = existing.careNote
+        showCareTips = existing.showCareTips
         price = existing.priceOnRequest ? "" : String(existing.price)
         tags = existing.tags.joined(separator: ", ")
     }
@@ -270,7 +294,9 @@ struct ArtworkEditorView: View {
             tags: parsedTags,
             thumbnailURL: existing?.thumbnailURL,
             createdAt: existing?.createdAt ?? Date(),
-            priceOnRequest: priceOnRequest
+            priceOnRequest: priceOnRequest,
+            careNote: CareGuide.cleanNote(careNote),
+            showCareTips: showCareTips
         )
         do {
             let saved = try await appState.backend.saveArtwork(artwork, images: processed.isEmpty ? nil : processed)
