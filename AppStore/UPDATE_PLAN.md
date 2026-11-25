@@ -4,7 +4,7 @@ Source: "Recommended V1 scope" in the research doc [ArtistFolio Competitor Analy
 
 **Starting point:** 1.0.0 (build 8) is approved and live on the App Store (as of 2026-11-24).
 
-**Status (2026-11-24):** all of 1.1 (items 1–9) is built on `social-sharing` as version 1.1.0 (9). Release steps are in `RELEASE_1.1.md`. All of 1.2 is built on `universal-links-qr`: universal links, QR labels, reviews, and view, like and follower counts. It is not yet versioned, released or merged.
+**Status (2026-11-24):** all of 1.1 (items 1–9) is built on `social-sharing` as version 1.1.0 (9). Release steps are in `RELEASE_1.1.md`. All of 1.2 is built on `universal-links-qr`: universal links, QR labels, reviews, and view, like and follower counts. It is versioned 1.2.0 (10); release steps are in `RELEASE_1.2.md`. Not yet merged or submitted.
 
 **1.2 release notes so far:**
 - CloudKit: new `Review` record type (see `CloudKit/schema.ckdb`; `___createTime` must be sortable and `___createdBy` queryable). Deploy before release, along with any 1.1 fields not yet deployed.
