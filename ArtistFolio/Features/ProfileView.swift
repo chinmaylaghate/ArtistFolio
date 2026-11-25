@@ -196,6 +196,7 @@ struct ArtistProfileView: View {
     @State private var showBlockConfirm = false
     @State private var showShare = false
     @State private var showCommissionContact = false
+    @State private var selectedSeries: String?
 
     private var isSelf: Bool { artistId == appState.currentUserID }
     private var summary: ArtistSummary { ArtistSummary(artworks: artworks) }
@@ -315,10 +316,48 @@ struct ArtistProfileView: View {
             if artworks.isEmpty {
                 EmptyStateView(icon: "photo.artframe", title: "No Artworks Yet", subtitle: "Check back soon.")
             } else {
-                ArtworkGrid(artworks: artworks)
+                if seriesNames.count > 0 {
+                    seriesFilter
+                }
+                ArtworkGrid(artworks: shownArtworks)
             }
         }
         .padding(AFSpacing.md)
+    }
+
+    /// Series names used by this artist, most pieces first.
+    private var seriesNames: [String] {
+        var counts: [String: Int] = [:]
+        for artwork in artworks {
+            let name = artwork.series.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !name.isEmpty { counts[name, default: 0] += 1 }
+        }
+        return counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.map(\.key)
+    }
+
+    private var shownArtworks: [Artwork] {
+        guard let selectedSeries else { return artworks }
+        return artworks.filter { $0.series.trimmingCharacters(in: .whitespacesAndNewlines) == selectedSeries }
+    }
+
+    private var seriesFilter: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AFSpacing.xs) {
+                seriesChip("All", isSelected: selectedSeries == nil) { selectedSeries = nil }
+                ForEach(seriesNames, id: \.self) { name in
+                    seriesChip(name, isSelected: selectedSeries == name) { selectedSeries = name }
+                }
+            }
+        }
+        .scrollClipDisabled()
+    }
+
+    private func seriesChip(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            ListingChip(text: title, isProminent: isSelected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var summaryCard: some View {

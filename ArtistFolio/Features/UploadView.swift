@@ -22,6 +22,7 @@ struct ArtworkEditorView: View {
     @State private var price = ""
     @State private var priceOnRequest = false
     @State private var careNote = ""
+    @State private var series = ""
     @State private var showCareTips = true
     @State private var tags = ""
     @State private var isProcessing = false
@@ -71,6 +72,10 @@ struct ArtworkEditorView: View {
                     Picker("Style", selection: $style) {
                         ForEach(ArtworkStyle.allCases) { Text($0.rawValue).tag($0) }
                     }
+                    TextField("Series (optional)", text: $series)
+                        .onChange(of: series) { _, value in
+                            if value.count > Artwork.maxSeriesLength { series = String(value.prefix(Artwork.maxSeriesLength)) }
+                        }
                 }
 
                 Section("Dimensions") {
@@ -249,6 +254,7 @@ struct ArtworkEditorView: View {
         year = String(existing.year)
         priceOnRequest = existing.priceOnRequest
         careNote = existing.careNote
+        series = existing.series
         showCareTips = existing.showCareTips
         price = existing.priceOnRequest ? "" : String(existing.price)
         tags = existing.tags.joined(separator: ", ")
@@ -296,7 +302,8 @@ struct ArtworkEditorView: View {
             createdAt: existing?.createdAt ?? Date(),
             priceOnRequest: priceOnRequest,
             careNote: CareGuide.cleanNote(careNote),
-            showCareTips: showCareTips
+            showCareTips: showCareTips,
+            series: series.trimmed
         )
         do {
             let saved = try await appState.backend.saveArtwork(artwork, images: processed.isEmpty ? nil : processed)

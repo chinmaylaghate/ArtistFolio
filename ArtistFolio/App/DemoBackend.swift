@@ -42,6 +42,9 @@ final class DemoBackend: ArtBackend {
         if let index = items.firstIndex(where: { $0.id == "art-2" }) {
             items[index].careNote = "Varnished with a UV gloss. Wipe the frame only; the surface needs no cleaning."
         }
+        for id in ["art-2", "art-16", "art-17"] {
+            if let index = items.firstIndex(where: { $0.id == id }) { items[index].series = "Autumn Water" }
+        }
         switch mode {
         case "artist": userID = sofia.id
         case "collector":
@@ -138,10 +141,11 @@ final class DemoBackend: ArtBackend {
         if failsArtworkLoads { throw CKError(.networkFailure) }
         let words = SearchTokens.words(in: filters.text)
         var output = items.filter { art in
-            let tokens = SearchTokens.make(from: [art.title, art.medium.rawValue, art.style.rawValue] + art.tags)
+            let tokens = SearchTokens.make(from: [art.title, art.medium.rawValue, art.style.rawValue, art.series] + art.tags)
             return words.allSatisfy(tokens.contains)
                 && (filters.styles.isEmpty || filters.styles.contains(art.style))
                 && (filters.mediums.isEmpty || filters.mediums.contains(art.medium))
+                && (filters.sizes.isEmpty || filters.sizes.contains(art.dimensions.sizeClass))
                 && filters.matchesPrice(art)
         }
         switch filters.sortBy {
@@ -154,13 +158,14 @@ final class DemoBackend: ArtBackend {
 
     func artworks(ownerID: String) async throws -> [Artwork] { items.filter { $0.artistId == ownerID } }
     func artworks(ids: [String]) async throws -> [Artwork] { items.filter { ids.contains($0.id) } }
+    func backfillSizeClasses() async throws -> Int { 0 }
     func fullImages(artworkID: String) async throws -> [URL] {
         items.first { $0.id == artworkID }?.thumbnailURL.map { [$0] } ?? []
     }
 
     func saveArtwork(_ artwork: Artwork, images: [ProcessedImage]?) async throws -> Artwork {
         guard let userID, let profile = profiles[userID] else { throw AppError.iCloudRequired }
-        guard ContentFilter.isAllowed([artwork.title, artwork.details, artwork.careNote] + artwork.tags) else { throw AppError.objectionableContent }
+        guard ContentFilter.isAllowed([artwork.title, artwork.details, artwork.careNote, artwork.series] + artwork.tags) else { throw AppError.objectionableContent }
         guard artwork.artistId.isEmpty || artwork.artistId == userID else { throw AppError.notOwner }
         var output = artwork
         output.artistId = userID

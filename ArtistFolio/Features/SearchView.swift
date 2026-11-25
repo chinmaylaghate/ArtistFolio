@@ -47,7 +47,7 @@ struct SearchView: View {
 
     private var searchKey: String {
         let f = model.filters
-        return "\(f.text.trimmed)|\(f.styles)|\(f.mediums)|\(f.minPrice)|\(f.maxPrice)|\(f.sortBy)"
+        return "\(f.text.trimmed)|\(f.styles)|\(f.mediums)|\(f.sizes)|\(f.minPrice)|\(f.maxPrice)|\(f.sortBy)"
     }
 
     private var thumbnailKey: String {
@@ -323,6 +323,7 @@ struct FiltersSheet: View {
                 }
                 options("Style", ArtworkStyle.allCases, selection: $filters.styles, label: \.rawValue)
                 options("Medium", ArtworkMedium.allCases, selection: $filters.mediums, label: \.rawValue)
+                options("Size", ArtworkSize.allCases, selection: $filters.sizes, label: \.label)
             }
             .scrollContentBackground(.hidden)
             .navigationTitle("Filters")

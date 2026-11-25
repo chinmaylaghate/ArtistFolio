@@ -63,6 +63,24 @@ enum ArtworkStatus: String, CaseIterable, Identifiable {
     var label: String { rawValue.capitalized }
 }
 
+/// Size band from the longest side, used by the size filter.
+enum ArtworkSize: String, CaseIterable, Identifiable {
+    case small, medium, large
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .small: return "Small (under 40 cm)"
+        case .medium: return "Medium (40\u{2013}100 cm)"
+        case .large: return "Large (over 100 cm)"
+        }
+    }
+
+    init(longestSideCentimeters side: Double) {
+        if side < 40 { self = .small } else if side <= 100 { self = .medium } else { self = .large }
+    }
+}
+
 struct ArtworkDimensions: Hashable {
     var width: Double
     var height: Double
@@ -93,6 +111,11 @@ struct ArtworkDimensions: Hashable {
         "\(Self.format(width)) x \(Self.format(height)) \(unit)"
     }
 
+    var sizeClass: ArtworkSize {
+        let size = sizeInCentimeters
+        return ArtworkSize(longestSideCentimeters: max(size.width, size.height))
+    }
+
     private static func format(_ value: Double) -> String {
         value.rounded() == value ? String(Int(value)) : String(format: "%.1f", value)
     }
@@ -119,6 +142,10 @@ struct Artwork: Identifiable, Hashable {
     var careNote: String = ""
     /// Whether to show the standard care tips for the medium.
     var showCareTips: Bool = true
+    /// Optional name of the series this piece belongs to.
+    var series: String = ""
+
+    static let maxSeriesLength = 60
 
     var priceText: String {
         if priceOnRequest { return "Price on request" }
@@ -130,6 +157,7 @@ struct ArtworkFilters: Hashable {
     var text: String = ""
     var styles: [ArtworkStyle] = []
     var mediums: [ArtworkMedium] = []
+    var sizes: [ArtworkSize] = []
     var minPrice: Double = 0
     var maxPrice: Double = ArtworkFilters.priceCeiling
     var sortBy: SortOption = .newest
@@ -137,7 +165,7 @@ struct ArtworkFilters: Hashable {
     static let priceCeiling: Double = 50000
 
     var hasRefinements: Bool {
-        !styles.isEmpty || !mediums.isEmpty || hasPriceLimit
+        !styles.isEmpty || !mediums.isEmpty || !sizes.isEmpty || hasPriceLimit
     }
 
     var hasPriceLimit: Bool { minPrice > 0 || maxPrice < Self.priceCeiling }
@@ -182,6 +210,7 @@ struct ArtCollection: Identifiable, Hashable {
     func matches(_ artwork: Artwork) -> Bool {
         (filters.styles.isEmpty || filters.styles.contains(artwork.style))
             && (filters.mediums.isEmpty || filters.mediums.contains(artwork.medium))
+            && (filters.sizes.isEmpty || filters.sizes.contains(artwork.dimensions.sizeClass))
             && filters.matchesPrice(artwork)
     }
 
@@ -284,6 +313,8 @@ protocol ArtBackend: AnyObject {
     func artworks(filters: ArtworkFilters, cursor: CKQueryOperation.Cursor?) async throws -> ArtworkPage
     func artworks(ownerID: String) async throws -> [Artwork]
     func artworks(ids: [String]) async throws -> [Artwork]
+    /// Fills in the stored size band on the signed-in artist's older listings. Returns how many were updated.
+    func backfillSizeClasses() async throws -> Int
     func fullImages(artworkID: String) async throws -> [URL]
     func saveArtwork(_ artwork: Artwork, images: [ProcessedImage]?) async throws -> Artwork
     func deleteArtwork(id: String) async throws

@@ -49,6 +49,8 @@ DEFINE SCHEMA
         priceOnRequest  INT64,
         careNote        STRING,
         showCareTips    INT64,
+        series          STRING QUERYABLE,
+        sizeClass       STRING QUERYABLE,
         status          STRING QUERYABLE,
         medium          STRING QUERYABLE,
         style           STRING QUERYABLE,

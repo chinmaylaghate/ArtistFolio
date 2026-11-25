@@ -33,6 +33,7 @@ final class AppState: ObservableObject {
     private static let enteredKey = "hasEnteredApp"
     private var accountObserver: NSObjectProtocol?
     private var accountGeneration = 0
+    private var didBackfillSizes = false
 
     init(backend: ArtBackend? = nil) {
         let resolved = backend ?? BackendFactory.make()
@@ -212,6 +213,14 @@ final class AppState: ObservableObject {
     }
 
     func isSaved(_ artworkID: String) -> Bool { library.saved.contains(artworkID) }
+    /// Older listings were saved without a size band, so the size filter misses them.
+    /// Fills it in for the signed-in artist's own listings once per launch; a failure is retried on the next Studio load.
+    func backfillSizeClassesOnce() async {
+        guard !didBackfillSizes, !isDemoMode, hasICloud else { return }
+        didBackfillSizes = true
+        if (try? await backend.backfillSizeClasses()) == nil { didBackfillSizes = false }
+    }
+
     func isFollowing(_ artistID: String) -> Bool { library.following.contains(artistID) }
     func isBlocked(_ artistID: String) -> Bool { library.blocked.contains(artistID) }
 

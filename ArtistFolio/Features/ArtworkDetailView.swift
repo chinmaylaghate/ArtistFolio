@@ -18,6 +18,7 @@ struct ArtworkDetailView: View {
     @State private var openFailed = false
     @State private var chooseEnquiryChannel = false
     @State private var showCareGuide = false
+    @State private var seriesWorks: [Artwork] = []
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -117,6 +118,7 @@ struct ArtworkDetailView: View {
         .task(id: artwork.id) {
             artist = try? await appState.backend.profile(ownerID: artwork.artistId)
             imageURLs = (try? await appState.backend.fullImages(artworkID: artwork.id)) ?? []
+            seriesWorks = await loadSeriesWorks()
         }
     }
 
@@ -263,6 +265,10 @@ struct ArtworkDetailView: View {
 
             careSection
 
+            if !seriesWorks.isEmpty {
+                moreFromSeries
+            }
+
             if !artwork.tags.isEmpty {
                 FlowLayout(spacing: AFSpacing.xs) {
                     ForEach(artwork.tags, id: \.self) { tag in
@@ -303,7 +309,36 @@ struct ArtworkDetailView: View {
             FlowLayout(spacing: AFSpacing.xs) {
                 ListingChip(status: artwork.status)
                 ListingChip(text: artwork.style.rawValue)
+                if !seriesName.isEmpty {
+                    ListingChip(text: "Series: \(seriesName)")
+                }
             }
+        }
+    }
+
+    private var seriesName: String { artwork.series.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// Other pieces by the same artist in the same series, newest first.
+    private func loadSeriesWorks() async -> [Artwork] {
+        guard !seriesName.isEmpty,
+              let works = try? await appState.backend.artworks(ownerID: artwork.artistId) else { return [] }
+        return works
+            .filter { $0.id != artwork.id && $0.series.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(seriesName) == .orderedSame }
+            .filter(appState.isVisible)
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private var moreFromSeries: some View {
+        VStack(alignment: .leading, spacing: AFSpacing.xs) {
+            Text("More from \u{201C}\(seriesName)\u{201D}").font(.headline)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: AFSpacing.sm) {
+                    ForEach(seriesWorks) { work in
+                        ArtworkLink(artwork: work).frame(width: 150)
+                    }
+                }
+            }
+            .scrollClipDisabled()
         }
     }
 

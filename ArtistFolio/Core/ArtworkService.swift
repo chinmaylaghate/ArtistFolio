@@ -5,7 +5,7 @@ enum ArtworkMapper {
     static let listKeys: [CKRecord.FieldKey] = [
         "title", "details", "price", "status", "medium", "style",
         "width", "height", "unit", "year", "tags", "thumbnail", "priceOnRequest",
-        "careNote", "showCareTips"
+        "careNote", "showCareTips", "series"
     ]
 
     static func artwork(from record: CKRecord, ownerID: String, thumbnailURL: URL?) -> Artwork? {
@@ -35,7 +35,8 @@ enum ArtworkMapper {
             priceOnRequest: (record["priceOnRequest"] as? Int64 ?? 0) == 1,
             careNote: record["careNote"] as? String ?? "",
             // Listings saved before 1.1 have no value; show the standard tips for them.
-            showCareTips: (record["showCareTips"] as? Int64 ?? 1) == 1
+            showCareTips: (record["showCareTips"] as? Int64 ?? 1) == 1,
+            series: record["series"] as? String ?? ""
         )
     }
 
@@ -46,6 +47,8 @@ enum ArtworkMapper {
         record["priceOnRequest"] = Int64(artwork.priceOnRequest ? 1 : 0)
         record["careNote"] = CareGuide.cleanNote(artwork.careNote)
         record["showCareTips"] = Int64(artwork.showCareTips ? 1 : 0)
+        record["series"] = String(artwork.series.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Artwork.maxSeriesLength))
+        record["sizeClass"] = artwork.dimensions.sizeClass.rawValue
         record["status"] = artwork.status.rawValue
         record["medium"] = artwork.medium.rawValue
         record["style"] = artwork.style.rawValue
@@ -55,7 +58,7 @@ enum ArtworkMapper {
         record["year"] = Int64(artwork.year)
         record["tags"] = artwork.tags
         record["searchTokens"] = SearchTokens.make(
-            from: [artwork.title, artwork.medium.rawValue, artwork.style.rawValue] + artwork.tags
+            from: [artwork.title, artwork.medium.rawValue, artwork.style.rawValue, artwork.series] + artwork.tags
         )
     }
 
@@ -68,6 +71,9 @@ enum ArtworkMapper {
         }
         if !filters.mediums.isEmpty {
             parts.append(NSPredicate(format: "medium IN %@", filters.mediums.map(\.rawValue)))
+        }
+        if !filters.sizes.isEmpty {
+            parts.append(NSPredicate(format: "sizeClass IN %@", filters.sizes.map(\.rawValue)))
         }
         if filters.minPrice > 0 {
             parts.append(NSPredicate(format: "price >= %f", filters.minPrice))
@@ -129,7 +135,7 @@ extension CloudKitService {
 
     func saveArtwork(_ artwork: Artwork, images: [ProcessedImage]?) async throws -> Artwork {
         let owner = try await requireUserID()
-        guard ContentFilter.isAllowed([artwork.title, artwork.details, artwork.careNote] + artwork.tags) else {
+        guard ContentFilter.isAllowed([artwork.title, artwork.details, artwork.careNote, artwork.series] + artwork.tags) else {
             throw AppError.objectionableContent
         }
         let id = CKRecord.ID(recordName: artwork.id)
@@ -168,6 +174,24 @@ extension CloudKitService {
             throw AppError.notOwner
         }
         try await delete([recordID], from: publicDB)
+    }
+
+    func backfillSizeClasses() async throws -> Int {
+        let owner = try await requireUserID()
+        let query = CKQuery(recordType: "Artwork", predicate: Self.creatorPredicate(owner))
+        let records = try await allRecords(publicDB, query: query, keys: ["width", "height", "unit", "sizeClass"])
+        let missing = records.compactMap { record -> CKRecord? in
+            guard record["sizeClass"] == nil,
+                  let width = record["width"] as? Double, let height = record["height"] as? Double,
+                  let unit = record["unit"] as? String else { return nil }
+            record["sizeClass"] = ArtworkDimensions(width: width, height: height, unit: unit).sizeClass.rawValue
+            return record
+        }
+        guard !missing.isEmpty else { return 0 }
+        _ = try await retrying {
+            try await publicDB.modifyRecords(saving: missing, deleting: [], savePolicy: .changedKeys, atomically: false)
+        }
+        return missing.count
     }
 
     private func hydrate(_ records: [CKRecord]) async -> [Artwork] {

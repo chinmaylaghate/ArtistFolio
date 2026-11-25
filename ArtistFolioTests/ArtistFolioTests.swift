@@ -556,3 +556,45 @@ final class CareGuideTests: XCTestCase {
         XCTAssertEqual(mapped.careNote, "")
     }
 }
+
+final class SeriesAndSizeTests: XCTestCase {
+    private func dims(_ w: Double, _ h: Double, _ unit: String = "cm") -> ArtworkDimensions {
+        ArtworkDimensions(width: w, height: h, unit: unit)
+    }
+
+    func testSizeBandsUseLongestSideInCentimeters() {
+        XCTAssertEqual(dims(30, 39).sizeClass, .small)
+        XCTAssertEqual(dims(30, 40).sizeClass, .medium)
+        XCTAssertEqual(dims(100, 60).sizeClass, .medium)
+        XCTAssertEqual(dims(122, 80).sizeClass, .large)
+        XCTAssertEqual(dims(16, 20, "in").sizeClass, .medium, "20 in is about 51 cm")
+    }
+
+    func testSeriesAndSizeAreSavedAndSearchable() throws {
+        var art = Artwork(id: "a1", artistId: "o", title: "Dusk", details: "", price: 10, status: .available, medium: .acrylic, style: .abstract, dimensions: dims(122, 80), year: 2026)
+        art.series = "  Autumn Water  "
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(art, to: record)
+        XCTAssertEqual(record["sizeClass"] as? String, "large")
+        XCTAssertEqual(record["series"] as? String, "Autumn Water")
+        XCTAssertTrue((record["searchTokens"] as? [String] ?? []).contains("autumn"))
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "o", thumbnailURL: nil))
+        XCTAssertEqual(mapped.series, "Autumn Water")
+    }
+
+    func testSizeFilterReachesPredicateAndCollections() {
+        var filters = ArtworkFilters()
+        filters.sizes = [.small]
+        XCTAssertTrue(filters.hasRefinements)
+        XCTAssertTrue(ArtworkMapper.predicate(for: filters).predicateFormat.contains("sizeClass"))
+    }
+
+    func testDemoSizeFilter() async throws {
+        let backend = DemoBackend(mode: "collector")
+        var filters = ArtworkFilters()
+        filters.sizes = [.large]
+        let page = try await backend.artworks(filters: filters, cursor: nil)
+        XCTAssertFalse(page.items.isEmpty)
+        XCTAssertTrue(page.items.allSatisfy { $0.dimensions.sizeClass == .large })
+    }
+}

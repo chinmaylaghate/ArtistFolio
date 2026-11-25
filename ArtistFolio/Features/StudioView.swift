@@ -77,6 +77,7 @@ struct StudioView: View {
         errorMessage = nil
         do {
             artworks = try await appState.backend.artworks(ownerID: id)
+            await appState.backfillSizeClassesOnce()
         } catch is CancellationError {
             return
         } catch {
