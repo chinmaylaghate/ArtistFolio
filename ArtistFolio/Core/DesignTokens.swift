@@ -50,6 +50,18 @@ struct AFRadius {
     static let lg: CGFloat = 20
 }
 
+extension ToolbarContent {
+    /// Keeps a non-button toolbar item (such as the logo) off iOS 26's shared glass capsule.
+    @ToolbarContentBuilder
+    func hiddenSharedBackground() -> some ToolbarContent {
+        if #available(iOS 26, *) {
+            sharedBackgroundVisibility(.hidden)
+        } else {
+            self
+        }
+    }
+}
+
 extension View {
     @ViewBuilder
     func afGlass<S: Shape>(in shape: S, tint: Color? = nil, interactive: Bool = false) -> some View {

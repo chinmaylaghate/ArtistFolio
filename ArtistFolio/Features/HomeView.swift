@@ -160,10 +160,15 @@ struct HomeView: View {
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .principal) {
+            ToolbarItem(placement: .topBarLeading) {
                 BrandLogo(height: 34)
                     .foregroundStyle(.primary)
                     .accessibilityAddTraits(.isHeader)
+            }
+            .hiddenSharedBackground()
+            // The logo stands in for the title, so keep the centered "Home" title from showing.
+            ToolbarItem(placement: .principal) {
+                Text(verbatim: "").accessibilityHidden(true)
             }
             if appState.isArtist {
                 ToolbarItem(placement: .primaryAction) {
