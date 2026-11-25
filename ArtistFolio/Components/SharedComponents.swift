@@ -102,6 +102,37 @@ struct StatusBadge: View {
     }
 }
 
+/// Small fact chip used on listing headers (status, style, series, medium).
+struct ListingChip: View {
+    let text: String
+    var dot: Color? = nil
+    var isProminent = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let dot {
+                Circle().fill(dot).frame(width: 7, height: 7).accessibilityHidden(true)
+            }
+            Text(text)
+        }
+        .font(.footnote.weight(.medium))
+        .foregroundStyle(isProminent ? Color(uiColor: .systemBackground) : Color.primary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(isProminent ? AnyShapeStyle(Color.primary) : AnyShapeStyle(Color(uiColor: .tertiarySystemFill)), in: Capsule())
+    }
+}
+
+extension ListingChip {
+    init(status: ArtworkStatus) {
+        switch status {
+        case .available: self.init(text: status.label, dot: .green)
+        case .reserved: self.init(text: status.label, dot: .orange)
+        case .sold: self.init(text: status.label, isProminent: true)
+        }
+    }
+}
+
 struct SaveButton: View {
     @EnvironmentObject var appState: AppState
     let artwork: Artwork

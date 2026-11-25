@@ -2,7 +2,7 @@
 
 Source: "Recommended V1 scope" in the research doc [ArtistFolio Competitor Analysis and V1 Plan](https://claude.ai/artifact/P9Tu1P7vhrnNxhJF4D7TZm), checked against the code on 2026-11-24.
 
-**Before this plan:** submit 1.0 (build 8) as it is. `SUBMISSION.md` shows it is still a draft.
+**Starting point:** 1.0.0 (build 8) is approved and live on the App Store (as of 2026-11-24).
 
 **Already built, so not in the plan:** multiple photos per artwork. Upload takes up to 5 photos (`UploadView.maxPhotos`), CloudKit stores them in `Artwork.images`, and the detail page shows a swipe gallery.
 

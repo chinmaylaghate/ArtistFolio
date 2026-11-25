@@ -108,6 +108,15 @@ struct ArtworkEditorView: View {
                     Section {
                         Button("Delete Artwork", role: .destructive) { showDelete = true }
                     }
+                } else {
+                    Section {
+                    } footer: {
+                        Text("By publishing, you confirm you created this work and hold its copyright. Selling the piece does not transfer reproduction rights unless you agree that with the buyer. Artist Folio takes no commission and does not handle payment or delivery.")
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding(AFSpacing.md)
+                            .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+                    }
                 }
             }
             .scrollDismissesKeyboard(.interactively)

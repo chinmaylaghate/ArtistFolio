@@ -194,17 +194,8 @@ struct ArtworkDetailView: View {
                 .frame(maxWidth: .infinity)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: AFSpacing.xxs) {
-                Text(artwork.title).font(.title.bold())
-                Text("\(artwork.medium.rawValue) · \(String(artwork.year))")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.afTextSecondary)
-                HStack(spacing: AFSpacing.xs) {
-                    Text(artwork.priceText).font(.title2.weight(.semibold))
-                    if artwork.status != .available { StatusBadge(status: artwork.status) }
-                }
-                .padding(.top, AFSpacing.xxs)
-            }
+            listingHeader
+            priceCard
 
             NavigationLink(value: ArtistLink(id: artwork.artistId)) {
                 HStack(spacing: AFSpacing.sm) {
@@ -276,6 +267,71 @@ struct ArtworkDetailView: View {
         )
     }
 
+    private var listingHeader: some View {
+        VStack(alignment: .leading, spacing: AFSpacing.xs) {
+            VStack(alignment: .leading, spacing: AFSpacing.xxs) {
+                Text(artwork.title)
+                    .font(.title.bold())
+                    .accessibilityAddTraits(.isHeader)
+                Text("\(artwork.medium.rawValue) · \(artwork.dimensions.displayString) · \(String(artwork.year))")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.afTextSecondary)
+            }
+            FlowLayout(spacing: AFSpacing.xs) {
+                ListingChip(status: artwork.status)
+                ListingChip(text: artwork.style.rawValue)
+            }
+        }
+    }
+
+    private var artistFirstName: String {
+        artwork.artistName.split(separator: " ").first.map(String.init) ?? artwork.artistName
+    }
+
+    private var priceCard: some View {
+        HStack(spacing: AFSpacing.sm) {
+            if artwork.status == .sold {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("This piece has sold")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color.afTextSecondary)
+                    Text(isOwner ? artwork.priceText : "Follow \(artistFirstName) for new work")
+                        .font(isOwner ? .title2.weight(.semibold) : .headline)
+                }
+                Spacer(minLength: 0)
+                if !isOwner {
+                    followButton
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Price")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color.afTextSecondary)
+                    Text(artwork.priceText).font(.title2.weight(.semibold))
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, AFSpacing.md)
+        .padding(.vertical, 14)
+        .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
+        .accessibilityElement(children: .contain)
+    }
+
+    private var followButton: some View {
+        let following = appState.isFollowing(artwork.artistId)
+        return Button {
+            appState.toggleFollowing(artwork.artistId)
+        } label: {
+            Text(following ? "Following" : "Follow")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, AFSpacing.xs)
+        }
+        .afGlassButton()
+        .tint(Color.afPrimary)
+        .sensoryFeedback(.selection, trigger: following)
+    }
+
     @ViewBuilder
     private var bottomBar: some View {
         if isOwner {
@@ -286,12 +342,8 @@ struct ArtworkDetailView: View {
                 .primaryAction()
             }
         } else if artwork.status == .sold {
-            barContainer {
-                Text("This piece has sold")
-                    .font(.subheadline.weight(.medium))
-                    .frame(maxWidth: .infinity, minHeight: 50)
-                    .afGlass(in: Capsule())
-            }
+            // The price card already says it has sold and offers Follow.
+            EmptyView()
         } else if let options = artist?.contactOptions, !options.isEmpty {
             barContainer {
                 Button { showContact = true } label: {
