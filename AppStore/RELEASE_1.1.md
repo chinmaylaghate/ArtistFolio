@@ -18,7 +18,7 @@ Build: **1.1.0 (9)**. Branch: `social-sharing`. 1.0.0 (8) is live. Scope and des
 
    `CloudKit/schema.ckdb` holds the full schema. CloudKit can add fields but never remove them, so check the names before deploying.
 
-2. **Merge to `main`** so the website updates. `docs/privacy.html` adds phone and WhatsApp numbers, and `docs/support.html` adds the care guide. App Review may open both.
+2. **Update the live website.** artistfolioapp.com is served from the separate `artistfolio-site` repo (GitHub Pages, `main` branch, root folder), not from this repo's `docs/`. Copy the 1.1 additions into its `privacy.html` (the phone and WhatsApp line) and `support.html` (the "Caring for Your Artwork" section), then push. App Review may open both. This repo's `docs/` folder is only a reference copy and has drifted (older colours and header).
 
 3. **Test on a real iPhone with your iCloud account** (the simulator has no Mail or WhatsApp):
    - Make an Offer and Ask for Price open Mail and WhatsApp with the message filled in.
