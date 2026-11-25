@@ -489,3 +489,38 @@ final class PhoneContactTests: XCTestCase {
         XCTAssertTrue(BuyerMessage.channels(for: nil).isEmpty)
     }
 }
+
+final class ArtistSummaryTests: XCTestCase {
+    private func art(_ price: Double, _ status: ArtworkStatus = .available, medium: ArtworkMedium = .acrylic, onRequest: Bool = false) -> Artwork {
+        var art = Artwork(id: UUID().uuidString, artistId: "a", title: "T", details: "", price: price, status: status, medium: medium, style: .abstract, dimensions: ArtworkDimensions(width: 50, height: 50, unit: "cm"), year: 2026)
+        art.priceOnRequest = onRequest
+        return art
+    }
+
+    func testStatsCountWorksSoldAndLowestAvailablePrice() {
+        let summary = ArtistSummary(artworks: [art(1450), art(400), art(300, .sold), art(0, onRequest: true), art(250, .reserved)])
+        XCTAssertEqual(summary.stats.map(\.label), ["Works", "Sold", "From"])
+        XCTAssertEqual(summary.stats.map(\.value), ["5", "1", "$400"])
+        XCTAssertTrue(summary.showsCard)
+    }
+
+    func testZeroStatsAreHiddenAndCardNeedsTwo() {
+        let summary = ArtistSummary(artworks: [art(0, onRequest: true)])
+        XCTAssertEqual(summary.stats.map(\.label), ["Work"])
+        XCTAssertFalse(summary.showsCard)
+        XCTAssertFalse(ArtistSummary(artworks: []).showsCard)
+    }
+
+    func testTopMediumsByCount() {
+        let summary = ArtistSummary(artworks: [art(1, medium: .oilOnCanvas), art(1, medium: .watercolor), art(1, medium: .watercolor), art(1, medium: .drawing), art(1, medium: .acrylic)])
+        XCTAssertEqual(summary.topMediums.first, .watercolor)
+        XCTAssertEqual(summary.topMediums.count, 3)
+    }
+
+    func testCompactPrice() {
+        XCTAssertEqual(ArtistSummary.compactPrice(400), "$400")
+        XCTAssertEqual(ArtistSummary.compactPrice(1200), "$1.2K")
+        XCTAssertEqual(ArtistSummary.compactPrice(3000), "$3K")
+        XCTAssertEqual(ArtistSummary.compactPrice(15500), "$16K")
+    }
+}

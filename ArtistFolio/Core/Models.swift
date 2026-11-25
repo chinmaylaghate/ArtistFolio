@@ -288,3 +288,53 @@ protocol ArtBackend: AnyObject {
     func submitReport(target: ReportTarget, targetID: String, reason: ReportReason, note: String) async throws
     func deleteAccount() async throws
 }
+
+/// Facts for the artist summary card, worked out from the artist's published artworks.
+struct ArtistSummary: Equatable {
+    struct Stat: Equatable, Identifiable {
+        let value: String
+        let label: String
+        var id: String { label }
+    }
+
+    let stats: [Stat]
+    let topMediums: [ArtworkMedium]
+
+    /// The card needs at least two facts to be worth showing.
+    var showsCard: Bool { stats.count >= 2 }
+
+    init(artworks: [Artwork]) {
+        var stats: [Stat] = []
+        if !artworks.isEmpty {
+            stats.append(Stat(value: String(artworks.count), label: artworks.count == 1 ? "Work" : "Works"))
+        }
+        let sold = artworks.filter { $0.status == .sold }.count
+        if sold > 0 {
+            stats.append(Stat(value: String(sold), label: "Sold"))
+        }
+        let prices = artworks.filter { $0.status == .available && !$0.priceOnRequest && $0.price > 0 }.map(\.price)
+        if let lowest = prices.min() {
+            stats.append(Stat(value: Self.compactPrice(lowest), label: "From"))
+        }
+        self.stats = stats
+
+        var counts: [ArtworkMedium: Int] = [:]
+        for artwork in artworks { counts[artwork.medium, default: 0] += 1 }
+        topMediums = counts
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key.rawValue < $1.key.rawValue }
+            .prefix(3)
+            .map(\.key)
+    }
+
+    /// "$400", "$1.2K", "$15K" — short enough for a stat column.
+    static func compactPrice(_ value: Double) -> String {
+        if value >= 1000 {
+            let thousands = value / 1000
+            let text = thousands >= 10 || thousands.rounded() == thousands
+                ? String(Int(thousands.rounded()))
+                : String(format: "%.1f", thousands)
+            return "$\(text)K"
+        }
+        return "$\(Int(value.rounded()))"
+    }
+}
