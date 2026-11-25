@@ -331,7 +331,7 @@ final class ShareFormatterTests: XCTestCase {
     func testCaptionNamesArtworkWithoutPrice() {
         let caption = ShareFormatter.caption(for: .artwork(artwork(), preferredImage: nil))
         XCTAssertTrue(caption.contains("Blue Study by Ana Ruiz"))
-        XCTAssertTrue(caption.contains(ShareFormatter.appStoreLink))
+        XCTAssertTrue(caption.contains("https://artistfolioapp.com/a/"))
         XCTAssertFalse(caption.contains("1,250"))
     }
 
@@ -596,5 +596,50 @@ final class SeriesAndSizeTests: XCTestCase {
         let page = try await backend.artworks(filters: filters, cursor: nil)
         XCTAssertFalse(page.items.isEmpty)
         XCTAssertTrue(page.items.allSatisfy { $0.dimensions.sizeClass == .large })
+    }
+}
+
+final class AppLinkTests: XCTestCase {
+    func testLinksRoundTrip() {
+        for link in [AppLink.artwork(id: "6F1C2A9E-0B7D-4E21-9C55-3A1B2C3D4E5F"), .artist(id: "_a1b2c3d4e5f6")] {
+            XCTAssertEqual(AppLink(url: link.url), link)
+        }
+        XCTAssertEqual(AppLink.artwork(id: "abc").url.absoluteString, "https://artistfolioapp.com/a/abc")
+    }
+
+    func testParsingAcceptsWwwAndTrailingSlash() {
+        XCTAssertEqual(AppLink(url: URL(string: "https://www.artistfolioapp.com/a/abc/")!), .artwork(id: "abc"))
+        XCTAssertEqual(AppLink(url: URL(string: "https://ArtistFolioApp.com/artist/_xyz")!), .artist(id: "_xyz"))
+    }
+
+    func testParsingRejectsOtherLinks() {
+        for text in ["http://artistfolioapp.com/a/abc", "https://evil.com/a/abc", "https://artistfolioapp.com/privacy.html",
+                     "https://artistfolioapp.com/a/", "https://artistfolioapp.com/a/abc/extra", "https://artistfolioapp.com/a/ab%20c"] {
+            XCTAssertNil(AppLink(url: URL(string: text)!), text)
+        }
+    }
+
+    func testOpenSetsLinkOnlyForKnownLinks() async {
+        let state = await AppState(backend: DemoBackend(mode: "collector"))
+        let opened = await state.open(URL(string: "https://artistfolioapp.com/a/art-2")!)
+        XCTAssertTrue(opened)
+        let link = await state.openedLink
+        XCTAssertEqual(link, .artwork(id: "art-2"))
+        let ignored = await state.open(URL(string: "https://example.com")!)
+        XCTAssertFalse(ignored)
+    }
+
+    func testShareCaptionUsesArtistLink() {
+        let profile = UserProfile(id: "_abc", displayName: "Ana Ruiz", role: .artist)
+        XCTAssertTrue(ShareFormatter.caption(for: .artist(profile)).contains("https://artistfolioapp.com/artist/_abc"))
+    }
+
+    func testQRCodeEncodesTheLink() throws {
+        let url = AppLink.artwork(id: "art-2").url
+        let image = try XCTUnwrap(QRCode.image(for: url))
+        XCTAssertGreaterThanOrEqual(image.size.width, 500)
+        let detector = try XCTUnwrap(CIDetector(ofType: CIDetectorTypeQRCode, context: nil, options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]))
+        let features = detector.features(in: try XCTUnwrap(CIImage(image: image))) as? [CIQRCodeFeature]
+        XCTAssertEqual(features?.first?.messageString, url.absoluteString)
     }
 }

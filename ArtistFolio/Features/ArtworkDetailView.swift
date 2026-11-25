@@ -19,6 +19,7 @@ struct ArtworkDetailView: View {
     @State private var chooseEnquiryChannel = false
     @State private var showCareGuide = false
     @State private var seriesWorks: [Artwork] = []
+    @State private var showLabel = false
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -63,6 +64,11 @@ struct ArtworkDetailView: View {
                 Button("Share", systemImage: "square.and.arrow.up") { showShare = true }
                     .tint(toolbarTint)
 
+                if isOwner {
+                    Button("QR Label", systemImage: "qrcode") { showLabel = true }
+                        .tint(toolbarTint)
+                }
+
                 if !isOwner {
                     Menu {
                         Button("Report Artwork", systemImage: "flag") { showReport = true }
@@ -90,6 +96,9 @@ struct ArtworkDetailView: View {
         }
         .sheet(isPresented: $showShare) {
             SocialShareSheet(subject: .artwork(artwork, preferredImage: galleryURLs.indices.contains(selectedImage) ? galleryURLs[selectedImage] : nil))
+        }
+        .sheet(isPresented: $showLabel) {
+            QRLabelSheet(artwork: artwork)
         }
         .sheet(isPresented: $showCareGuide) {
             CareGuideView(highlight: artwork.medium)

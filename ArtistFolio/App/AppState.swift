@@ -20,6 +20,8 @@ final class AppState: ObservableObject {
     @Published var showICloudPrompt = false
     @Published var showFirstTimeSetup = false
     @Published var alertMessage: String?
+    /// An artwork or artist opened from a shared link or QR code; shown over the tabs.
+    @Published var openedLink: AppLink?
     @Published var hasEnteredApp: Bool {
         didSet {
             // Demo sessions are in-memory, so relaunching returns to the normal entry flow.
@@ -213,6 +215,14 @@ final class AppState: ObservableObject {
     }
 
     func isSaved(_ artworkID: String) -> Bool { library.saved.contains(artworkID) }
+    /// Handles a universal link. Returns false for links the app doesn't recognise.
+    @discardableResult
+    func open(_ url: URL) -> Bool {
+        guard let link = AppLink(url: url) else { return false }
+        openedLink = link
+        return true
+    }
+
     /// Older listings were saved without a size band, so the size filter misses them.
     /// Fills it in for the signed-in artist's own listings once per launch; a failure is retried on the next Studio load.
     func backfillSizeClassesOnce() async {

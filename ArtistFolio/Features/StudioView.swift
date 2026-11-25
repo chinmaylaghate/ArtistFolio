@@ -7,6 +7,7 @@ struct StudioView: View {
     @State private var errorMessage: String?
     @State private var editing: Artwork?
     @State private var showNew = false
+    @State private var labelArtwork: Artwork?
 
     var body: some View {
         Group {
@@ -27,6 +28,10 @@ struct StudioView: View {
                             Button("Edit", systemImage: "pencil") { editing = artwork }
                                 .tint(.afPrimary)
                         }
+                        .swipeActions(edge: .leading) {
+                            Button("QR Label", systemImage: "qrcode") { labelArtwork = artwork }
+                                .tint(.indigo)
+                        }
                         .contextMenu { actions(artwork) }
                 }
                 .refreshable { await load() }
@@ -41,6 +46,7 @@ struct StudioView: View {
         .task(id: appState.contentVersion) { await load() }
         .sheet(isPresented: $showNew) { ArtworkEditorView(existing: nil) }
         .sheet(item: $editing) { ArtworkEditorView(existing: $0) }
+        .sheet(item: $labelArtwork) { QRLabelSheet(artwork: $0) }
     }
 
     private func row(_ artwork: Artwork) -> some View {
@@ -61,6 +67,7 @@ struct StudioView: View {
     @ViewBuilder
     private func actions(_ artwork: Artwork) -> some View {
         Button("Edit", systemImage: "pencil") { editing = artwork }
+        Button("QR Label", systemImage: "qrcode") { labelArtwork = artwork }
         Picker(selection: Binding(
             get: { artwork.status },
             set: { value in Task { await setStatus(artwork, value) } }

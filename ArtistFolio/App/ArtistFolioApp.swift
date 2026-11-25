@@ -52,6 +52,7 @@ struct RootView: View {
         } message: {
             Text(appState.alertMessage ?? "")
         }
+        .onOpenURL { appState.open($0) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, !appState.showSplash {
                 Task { await appState.reloadSession() }
