@@ -2,6 +2,8 @@
 
 artistfolioapp.com is served by GitHub Pages from the separate **`chinmaylaghate/artistfolio-site`** repo (`main` branch, root folder). This folder only stages the files that repo needs. Nothing here goes live until it is copied there and pushed.
 
+**Status:** copied and live since artistfolio-site commit `aa600fd` (2026-11-24). Apple's CDN serves the association file.
+
 ## Copy into `artistfolio-site` (repo root)
 
 | File here | Path in `artistfolio-site` | Why |
