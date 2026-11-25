@@ -12,7 +12,7 @@ final class DemoBackend: ArtBackend {
     var failsArtworkLoads = false
 
     init(mode: String) {
-        var sofia = UserProfile(id: "artist-sofia", displayName: "Sofia Martinez", bio: "Abstract painter working in acrylic and mixed media.", role: .artist, location: "Barcelona, Spain", website: "example.com", instagramHandle: "sofia.paints", contactEmail: "sofia@example.com", acceptsCommissions: true)
+        var sofia = UserProfile(id: "artist-sofia", displayName: "Sofia Martinez", bio: "Abstract painter working in acrylic and mixed media.", role: .artist, location: "Barcelona, Spain", website: "example.com", instagramHandle: "sofia.paints", contactEmail: "sofia@example.com", phone: "+34 612 345 678", whatsapp: "+34 612 345 678", acceptsCommissions: true)
         sofia.avatarURL = Self.avatar(initials: "SM", red: 0.72, green: 0.33, blue: 0.18, cacheKey: "demo-avatar-sofia")
         var james = UserProfile(id: "artist-james", displayName: "James Thornton", bio: "Seascapes and quiet countryside in oil and watercolor.", role: .artist, location: "Cornwall, UK", instagramHandle: "james.tides", contactEmail: "james@example.com")
         james.avatarURL = Self.avatar(initials: "JT", red: 0.15, green: 0.42, blue: 0.58, cacheKey: "demo-avatar-james")

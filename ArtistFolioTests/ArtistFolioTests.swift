@@ -413,7 +413,7 @@ final class BuyerMessageTests: XCTestCase {
     }
 
     func testOfferEmailNamesAmountListingAndNote() throws {
-        let url = BuyerMessage.offerURL(email: "sofia@example.com", artistName: "Sofia Martinez", artwork: art, amount: 1200, note: "Could you ship to Lisbon? A&B")
+        let url = BuyerMessage.offerURL(via: .email("sofia@example.com"), artistName: "Sofia Martinez", artwork: art, amount: 1200, note: "Could you ship to Lisbon? A&B")
         let mail = try decoded(url)
         XCTAssertEqual(mail.to, "sofia@example.com")
         XCTAssertEqual(mail.subject, "Offer for \u{201C}Amber Reflections\u{201D}")
@@ -424,14 +424,14 @@ final class BuyerMessageTests: XCTestCase {
     }
 
     func testOfferNoteIsCapped() throws {
-        let mail = try decoded(BuyerMessage.offerURL(email: "sofia@example.com", artistName: "Sofia", artwork: art, amount: 100, note: String(repeating: "x", count: 1000)))
+        let mail = try decoded(BuyerMessage.offerURL(via: .email("sofia@example.com"), artistName: "Sofia", artwork: art, amount: 100, note: String(repeating: "x", count: 1000)))
         XCTAssertFalse(mail.body.contains(String(repeating: "x", count: BuyerMessage.maxNoteLength + 1)))
     }
 
     func testPriceEnquiryAndInvalidEmail() throws {
-        let mail = try decoded(BuyerMessage.priceEnquiryURL(email: "sofia@example.com", artistName: "Sofia Martinez", artwork: art))
+        let mail = try decoded(BuyerMessage.priceEnquiryURL(via: .email("sofia@example.com"), artistName: "Sofia Martinez", artwork: art))
         XCTAssertTrue(mail.body.contains("Could you tell me the price"))
-        XCTAssertNil(BuyerMessage.priceEnquiryURL(email: "not-an-email", artistName: "Sofia", artwork: art))
+        XCTAssertNil(BuyerMessage.priceEnquiryURL(via: .email("not-an-email"), artistName: "Sofia", artwork: art))
     }
 
     func testAmountParsing() {
@@ -439,5 +439,53 @@ final class BuyerMessageTests: XCTestCase {
         XCTAssertEqual(BuyerMessage.amount(from: " 950.5 "), 950.5)
         XCTAssertNil(BuyerMessage.amount(from: "0"))
         XCTAssertNil(BuyerMessage.amount(from: "abc"))
+    }
+}
+
+final class PhoneContactTests: XCTestCase {
+    func testPhoneNumbersNormalize() {
+        XCTAssertEqual(ContactLinks.phoneNumber("+34 612-345 678"), "+34612345678")
+        XCTAssertEqual(ContactLinks.phoneNumber("(415) 555 0100"), "4155550100")
+        XCTAssertNil(ContactLinks.phoneNumber("12345"))
+        XCTAssertNil(ContactLinks.phoneNumber("call me maybe"))
+        XCTAssertNil(ContactLinks.phoneNumber("+1 555 0100 ext 2"))
+    }
+
+    func testCallTextAndWhatsAppLinks() {
+        XCTAssertEqual(ContactLinks.callURL("+34 612 345 678")?.absoluteString, "tel:+34612345678")
+        XCTAssertEqual(ContactLinks.textURL("+34 612 345 678")?.absoluteString, "sms:+34612345678")
+        XCTAssertEqual(ContactLinks.whatsappURL("+34 612 345 678")?.absoluteString, "https://wa.me/34612345678")
+        XCTAssertNil(ContactLinks.whatsappURL("612 345 678"), "WhatsApp needs the country code")
+    }
+
+    func testProfileOffersPhoneOptionsInOrder() {
+        let profile = UserProfile(id: "a", displayName: "Sofia", role: .artist, contactEmail: "sofia@example.com", phone: "+34 612 345 678", whatsapp: "+34 612 345 678")
+        XCTAssertEqual(profile.contactOptions.map(\.kind), [.email, .whatsapp, .call, .text])
+    }
+
+    func testPhoneFieldsRoundTrip() throws {
+        let record = CKRecord(recordType: "Profile")
+        let profile = UserProfile(id: "a", displayName: "Sofia", role: .artist, phone: "+34 612 345 678", whatsapp: "+34 612 345 678")
+        ProfileMapper.apply(profile, to: record)
+        let mapped = try XCTUnwrap(ProfileMapper.profile(from: record, ownerID: "a", avatarURL: nil))
+        XCTAssertEqual(mapped.phone, "+34 612 345 678")
+        XCTAssertEqual(mapped.whatsapp, "+34 612 345 678")
+    }
+
+    func testOfferByWhatsAppCarriesTheMessage() throws {
+        let art = Artwork(id: "a1", artistId: "a", title: "Amber Reflections", details: "", price: 1450, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 60, height: 90, unit: "cm"), year: 2026)
+        let url = try XCTUnwrap(BuyerMessage.offerURL(via: .whatsapp("+34 612 345 678"), artistName: "Sofia Martinez", artwork: art, amount: 1200, note: "Is it framed? A&B"))
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.host, "wa.me")
+        XCTAssertEqual(components.path, "/34612345678")
+        let text = try XCTUnwrap(components.queryItems?.first { $0.name == "text" }?.value)
+        XCTAssertTrue(text.contains("$1,200"))
+        XCTAssertTrue(text.contains("Is it framed? A&B"))
+    }
+
+    func testChannelsSkipInvalidContacts() {
+        let artist = UserProfile(id: "a", displayName: "Sofia", role: .artist, contactEmail: "bad", whatsapp: "+34 612 345 678")
+        XCTAssertEqual(BuyerMessage.channels(for: artist), [.whatsapp("+34 612 345 678")])
+        XCTAssertTrue(BuyerMessage.channels(for: nil).isEmpty)
     }
 }

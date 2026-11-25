@@ -15,7 +15,8 @@ struct ArtworkDetailView: View {
     @State private var viewerMode: ArtworkViewMode?
     @State private var isPastHero = false
     @State private var showOffer = false
-    @State private var mailUnavailable = false
+    @State private var openFailed = false
+    @State private var chooseEnquiryChannel = false
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -89,14 +90,17 @@ struct ArtworkDetailView: View {
             SocialShareSheet(subject: .artwork(artwork, preferredImage: galleryURLs.indices.contains(selectedImage) ? galleryURLs[selectedImage] : nil))
         }
         .sheet(isPresented: $showOffer) {
-            if let email = artistEmail {
-                OfferSheet(artwork: artwork, artistName: artwork.artistName, email: email)
+            OfferSheet(artwork: artwork, artistName: artwork.artistName, channels: buyerChannels)
+        }
+        .confirmationDialog("Ask \(BuyerMessage.firstName(artwork.artistName)) for the price", isPresented: $chooseEnquiryChannel, titleVisibility: .visible) {
+            ForEach(buyerChannels, id: \.self) { channel in
+                Button(channel.label) { askForPrice(via: channel) }
             }
         }
-        .alert("Couldn\u{2019}t open Mail", isPresented: $mailUnavailable) {
+        .alert("Couldn\u{2019}t open the app", isPresented: $openFailed) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("Email \(artistEmail ?? "the artist") directly to ask about this piece.")
+            Text("Use another contact option on \(BuyerMessage.firstName(artwork.artistName))\u{2019}s profile.")
         }
         .sheet(isPresented: $showReport) {
             ReportSheet(target: .artwork, targetID: artwork.id, name: artwork.title)
@@ -338,23 +342,27 @@ struct ArtworkDetailView: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// The artist's email when it is valid; offers and price questions go by email.
-    private var artistEmail: String? {
-        guard let email = artist?.contactEmail, ContactLinks.mailURL(email) != nil else { return nil }
-        return email
-    }
+    /// Offers and price questions go by email or WhatsApp, whichever the artist listed.
+    private var buyerChannels: [BuyerMessage.Channel] { BuyerMessage.channels(for: artist) }
 
     private var canMessageArtist: Bool {
-        !isOwner && artwork.status == .available && artistEmail != nil
+        !isOwner && artwork.status == .available && !buyerChannels.isEmpty
+    }
+
+    private func askForPrice(via channel: BuyerMessage.Channel) {
+        guard let url = BuyerMessage.priceEnquiryURL(via: channel, artistName: artwork.artistName, artwork: artwork) else { return }
+        openURL(url) { accepted in if !accepted { openFailed = true } }
     }
 
     @ViewBuilder
     private var buyerAction: some View {
         if artwork.priceOnRequest {
             Button {
-                guard let email = artistEmail,
-                      let url = BuyerMessage.priceEnquiryURL(email: email, artistName: artwork.artistName, artwork: artwork) else { return }
-                openURL(url) { accepted in if !accepted { mailUnavailable = true } }
+                if buyerChannels.count == 1, let channel = buyerChannels.first {
+                    askForPrice(via: channel)
+                } else {
+                    chooseEnquiryChannel = true
+                }
             } label: {
                 Text("Ask for Price")
                     .font(.subheadline.weight(.semibold))
@@ -668,19 +676,30 @@ private struct OfferSheet: View {
     @Environment(\.openURL) private var openURL
     let artwork: Artwork
     let artistName: String
-    let email: String
+    let channels: [BuyerMessage.Channel]
     @State private var amount = ""
     @State private var note = ""
-    @State private var mailUnavailable = false
+    @State private var openFailed = false
+    @State private var chooseChannel = false
     @FocusState private var amountFocused: Bool
 
-    private var firstName: String {
-        artistName.split(separator: " ").first.map(String.init) ?? artistName
+    private var firstName: String { BuyerMessage.firstName(artistName) }
+    private var amountValue: Double? { BuyerMessage.amount(from: amount) }
+
+    private var sendTitle: String {
+        channels.count == 1 ? "Open \(channels[0].label)" : "Send"
     }
 
-    private var offerURL: URL? {
-        guard let value = BuyerMessage.amount(from: amount) else { return nil }
-        return BuyerMessage.offerURL(email: email, artistName: artistName, artwork: artwork, amount: value, note: note)
+    private var channelNames: String {
+        channels.map(\.label).joined(separator: " or ")
+    }
+
+    private func send(via channel: BuyerMessage.Channel) {
+        guard let amountValue,
+              let url = BuyerMessage.offerURL(via: channel, artistName: artistName, artwork: artwork, amount: amountValue, note: note) else { return }
+        openURL(url) { accepted in
+            if accepted { dismiss() } else { openFailed = true }
+        }
     }
 
     var body: some View {
@@ -707,7 +726,7 @@ private struct OfferSheet: View {
                 } header: {
                     Text("Note (optional)")
                 } footer: {
-                    Text("Opens Mail with your offer to \(firstName). Artist Folio doesn\u{2019}t handle payment or delivery.")
+                    Text("Opens \(channelNames) with your offer to \(firstName). Artist Folio doesn\u{2019}t handle payment or delivery.")
                 }
             }
             .navigationTitle("Make an Offer")
@@ -717,20 +736,26 @@ private struct OfferSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Open Mail") {
-                        guard let offerURL else { return }
-                        openURL(offerURL) { accepted in
-                            if accepted { dismiss() } else { mailUnavailable = true }
+                    Button(sendTitle) {
+                        if channels.count == 1, let channel = channels.first {
+                            send(via: channel)
+                        } else {
+                            chooseChannel = true
                         }
                     }
                     .fontWeight(.semibold)
-                    .disabled(offerURL == nil)
+                    .disabled(amountValue == nil || channels.isEmpty)
                 }
             }
-            .alert("Couldn\u{2019}t open Mail", isPresented: $mailUnavailable) {
+            .confirmationDialog("Send your offer with", isPresented: $chooseChannel, titleVisibility: .visible) {
+                ForEach(channels, id: \.self) { channel in
+                    Button(channel.label) { send(via: channel) }
+                }
+            }
+            .alert("Couldn\u{2019}t open the app", isPresented: $openFailed) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("Email \(email) directly with your offer.")
+                Text("Use another contact option on \(firstName)\u{2019}s profile.")
             }
             .onAppear { amountFocused = true }
         }

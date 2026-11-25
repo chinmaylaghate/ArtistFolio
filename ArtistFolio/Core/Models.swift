@@ -17,13 +17,15 @@ struct UserProfile: Identifiable, Hashable {
     var website: String = ""
     var instagramHandle: String = ""
     var contactEmail: String = ""
+    var phone: String = ""
+    var whatsapp: String = ""
     var acceptsCommissions: Bool = false
     var avatarURL: URL?
     var followerCount: Int = 0
     var artworkCount: Int = 0
 
     var contactOptions: [ContactOption] {
-        ContactLinks.options(email: contactEmail, instagram: instagramHandle, website: website)
+        ContactLinks.options(email: contactEmail, instagram: instagramHandle, website: website, phone: phone, whatsapp: whatsapp)
     }
 }
 

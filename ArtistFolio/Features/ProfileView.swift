@@ -283,7 +283,7 @@ struct ArtistProfileView: View {
             }
 
             if !profile.contactOptions.isEmpty {
-                HStack(spacing: AFSpacing.xs) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: AFSpacing.xs), count: min(profile.contactOptions.count, 3)), spacing: AFSpacing.xs) {
                     ForEach(profile.contactOptions) { option in
                         Link(destination: option.url) {
                             Label(option.kind.rawValue, systemImage: option.icon)

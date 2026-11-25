@@ -26,6 +26,8 @@ DEFINE SCHEMA
         website            STRING,
         instagramHandle    STRING,
         contactEmail       STRING,
+        phone              STRING,
+        whatsapp           STRING,
         acceptsCommissions INT64,
         avatar             ASSET,
         searchTokens       LIST<STRING> QUERYABLE,

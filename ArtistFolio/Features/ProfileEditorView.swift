@@ -15,6 +15,8 @@ struct ProfileEditorView: View {
     @State private var email = ""
     @State private var instagram = ""
     @State private var website = ""
+    @State private var phone = ""
+    @State private var whatsapp = ""
     @State private var acceptsCommissions = false
     @State private var acceptedTerms = false
     @State private var avatarItem: PhotosPickerItem?
@@ -28,7 +30,11 @@ struct ProfileEditorView: View {
         if !email.trimmed.isEmpty, ContactLinks.mailURL(email) == nil { return "Enter a valid email." }
         if !instagram.trimmed.isEmpty, ContactLinks.instagramURL(instagram) == nil { return "Enter a valid Instagram handle." }
         if !website.trimmed.isEmpty, ContactLinks.websiteURL(website) == nil { return "Enter a valid https website." }
-        if role == .artist, ContactLinks.options(email: email, instagram: instagram, website: website).isEmpty {
+        if !phone.trimmed.isEmpty, ContactLinks.phoneNumber(phone) == nil { return "Enter a valid phone number." }
+        if !whatsapp.trimmed.isEmpty, ContactLinks.whatsappURL(whatsapp) == nil {
+            return "Enter your WhatsApp number with the country code, like +34 612 345 678."
+        }
+        if role == .artist, ContactLinks.options(email: email, instagram: instagram, website: website, phone: phone, whatsapp: whatsapp).isEmpty {
             return "Add at least one way for collectors to reach you."
         }
         if mode == .create, !acceptedTerms { return "Accept the terms to continue." }
@@ -75,6 +81,11 @@ struct ProfileEditorView: View {
                             .textContentType(.emailAddress)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
+                        TextField("Phone (optional)", text: $phone)
+                            .keyboardType(.phonePad)
+                            .textContentType(.telephoneNumber)
+                        TextField("WhatsApp, with country code", text: $whatsapp)
+                            .keyboardType(.phonePad)
                         TextField("Instagram", text: $instagram)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -86,7 +97,7 @@ struct ProfileEditorView: View {
                     } header: {
                         Text("Contact")
                     } footer: {
-                        Text("Anything you add here is public.")
+                        Text("Anything you add here is public, including phone numbers. Collectors can call, text or message you on WhatsApp.")
                     }
 
                     Section {
@@ -162,6 +173,8 @@ struct ProfileEditorView: View {
         email = profile.contactEmail
         instagram = profile.instagramHandle
         website = profile.website
+        phone = profile.phone
+        whatsapp = profile.whatsapp
         acceptsCommissions = profile.acceptsCommissions
     }
 
@@ -191,6 +204,8 @@ struct ProfileEditorView: View {
         profile.contactEmail = role == .artist ? email.trimmed : ""
         profile.instagramHandle = role == .artist ? instagram.trimmed : ""
         profile.website = role == .artist ? website.trimmed : ""
+        profile.phone = role == .artist ? phone.trimmed : ""
+        profile.whatsapp = role == .artist ? whatsapp.trimmed : ""
         profile.acceptsCommissions = role == .artist && acceptsCommissions
         do {
             let saved = try await appState.backend.saveProfile(profile, avatar: avatarData)
