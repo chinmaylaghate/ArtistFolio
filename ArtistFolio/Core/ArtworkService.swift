@@ -4,7 +4,7 @@ import Foundation
 enum ArtworkMapper {
     static let listKeys: [CKRecord.FieldKey] = [
         "title", "details", "price", "status", "medium", "style",
-        "width", "height", "unit", "year", "tags", "thumbnail"
+        "width", "height", "unit", "year", "tags", "thumbnail", "priceOnRequest"
     ]
 
     static func artwork(from record: CKRecord, ownerID: String, thumbnailURL: URL?) -> Artwork? {
@@ -30,14 +30,16 @@ enum ArtworkMapper {
             year: Int(year),
             tags: record["tags"] as? [String] ?? [],
             thumbnailURL: thumbnailURL,
-            createdAt: record.creationDate ?? Date()
+            createdAt: record.creationDate ?? Date(),
+            priceOnRequest: (record["priceOnRequest"] as? Int64 ?? 0) == 1
         )
     }
 
     static func apply(_ artwork: Artwork, to record: CKRecord) {
         record["title"] = artwork.title
         record["details"] = artwork.details
-        record["price"] = artwork.price
+        record["price"] = artwork.priceOnRequest ? 0 : artwork.price
+        record["priceOnRequest"] = Int64(artwork.priceOnRequest ? 1 : 0)
         record["status"] = artwork.status.rawValue
         record["medium"] = artwork.medium.rawValue
         record["style"] = artwork.style.rawValue
@@ -66,6 +68,8 @@ enum ArtworkMapper {
         }
         if filters.maxPrice < ArtworkFilters.priceCeiling {
             parts.append(NSPredicate(format: "price <= %f", filters.maxPrice))
+            // Price-on-request pieces are stored at 0; a price limit should not match them.
+            if filters.minPrice <= 0 { parts.append(NSPredicate(format: "price > 0")) }
         }
         return parts.isEmpty ? NSPredicate(value: true) : NSCompoundPredicate(andPredicateWithSubpredicates: parts)
     }
@@ -84,7 +88,7 @@ extension CloudKitService {
         let query = CKQuery(recordType: "Artwork", predicate: ArtworkMapper.predicate(for: filters))
         query.sortDescriptors = [ArtworkMapper.sort(for: filters.sortBy)]
         let result = try await page(publicDB, query: query, keys: ArtworkMapper.listKeys, limit: 24, cursor: cursor)
-        return ArtworkPage(items: await hydrate(result.records), cursor: result.cursor)
+        return ArtworkPage(items: filters.ordered(await hydrate(result.records)), cursor: result.cursor)
     }
 
     func artworks(ownerID: String) async throws -> [Artwork] {

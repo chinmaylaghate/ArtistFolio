@@ -354,3 +354,90 @@ final class ShareFormatterTests: XCTestCase {
         XCTAssertEqual(ShareFormatter.caption("Caption", for: .message), "Caption")
     }
 }
+
+final class PriceOnRequestTests: XCTestCase {
+    private func artwork(price: Double, onRequest: Bool = false) -> Artwork {
+        var art = Artwork(id: UUID().uuidString, artistId: "owner", title: "Amber Reflections", details: "", price: price, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 60, height: 90, unit: "cm"), year: 2026)
+        art.priceOnRequest = onRequest
+        return art
+    }
+
+    func testPriceOnRequestRoundTripsAndStoresZero() throws {
+        let record = CKRecord(recordType: "Artwork", recordID: CKRecord.ID(recordName: "a1"))
+        ArtworkMapper.apply(artwork(price: 900, onRequest: true), to: record)
+        XCTAssertEqual(record["price"] as? Double, 0)
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "owner", thumbnailURL: nil))
+        XCTAssertTrue(mapped.priceOnRequest)
+        XCTAssertEqual(mapped.priceText, "Price on request")
+    }
+
+    func testRecordsWithoutTheFieldArePriced() throws {
+        let record = CKRecord(recordType: "Artwork")
+        ArtworkMapper.apply(artwork(price: 450), to: record)
+        record["priceOnRequest"] = nil
+        let mapped = try XCTUnwrap(ArtworkMapper.artwork(from: record, ownerID: "owner", thumbnailURL: nil))
+        XCTAssertFalse(mapped.priceOnRequest)
+        XCTAssertEqual(mapped.priceText, "$450")
+    }
+
+    func testPriceLimitsExcludePriceOnRequest() {
+        var filters = ArtworkFilters()
+        XCTAssertTrue(filters.matchesPrice(artwork(price: 0, onRequest: true)))
+        filters.maxPrice = 1000
+        XCTAssertFalse(filters.matchesPrice(artwork(price: 0, onRequest: true)))
+        XCTAssertTrue(filters.matchesPrice(artwork(price: 800)))
+        XCTAssertTrue(ArtworkMapper.predicate(for: filters).predicateFormat.contains("price > 0"))
+    }
+
+    func testPriceSortPutsPriceOnRequestLast() {
+        let onRequest = artwork(price: 0, onRequest: true)
+        let cheap = artwork(price: 100)
+        let dear = artwork(price: 900)
+        var filters = ArtworkFilters()
+        filters.sortBy = .priceAsc
+        XCTAssertEqual(filters.ordered([onRequest, cheap, dear]).map(\.id), [cheap.id, dear.id, onRequest.id])
+        filters.sortBy = .newest
+        XCTAssertEqual(filters.ordered([onRequest, cheap]).map(\.id), [onRequest.id, cheap.id])
+    }
+}
+
+final class BuyerMessageTests: XCTestCase {
+    private let art = Artwork(id: "a1", artistId: "owner", title: "Amber Reflections", details: "", price: 1450, status: .available, medium: .acrylic, style: .abstract, dimensions: ArtworkDimensions(width: 60, height: 90, unit: "cm"), year: 2026)
+
+    private func decoded(_ url: URL?) throws -> (to: String, subject: String, body: String) {
+        let components = try XCTUnwrap(URLComponents(url: XCTUnwrap(url), resolvingAgainstBaseURL: false))
+        let items = components.queryItems ?? []
+        return (components.path,
+                items.first { $0.name == "subject" }?.value ?? "",
+                items.first { $0.name == "body" }?.value ?? "")
+    }
+
+    func testOfferEmailNamesAmountListingAndNote() throws {
+        let url = BuyerMessage.offerURL(email: "sofia@example.com", artistName: "Sofia Martinez", artwork: art, amount: 1200, note: "Could you ship to Lisbon? A&B")
+        let mail = try decoded(url)
+        XCTAssertEqual(mail.to, "sofia@example.com")
+        XCTAssertEqual(mail.subject, "Offer for \u{201C}Amber Reflections\u{201D}")
+        XCTAssertTrue(mail.body.hasPrefix("Hi Sofia,"))
+        XCTAssertTrue(mail.body.contains("$1,200"))
+        XCTAssertTrue(mail.body.contains("listed on Artist Folio at $1,450"))
+        XCTAssertTrue(mail.body.contains("Lisbon? A&B"), "ampersands and question marks must survive encoding")
+    }
+
+    func testOfferNoteIsCapped() throws {
+        let mail = try decoded(BuyerMessage.offerURL(email: "sofia@example.com", artistName: "Sofia", artwork: art, amount: 100, note: String(repeating: "x", count: 1000)))
+        XCTAssertFalse(mail.body.contains(String(repeating: "x", count: BuyerMessage.maxNoteLength + 1)))
+    }
+
+    func testPriceEnquiryAndInvalidEmail() throws {
+        let mail = try decoded(BuyerMessage.priceEnquiryURL(email: "sofia@example.com", artistName: "Sofia Martinez", artwork: art))
+        XCTAssertTrue(mail.body.contains("Could you tell me the price"))
+        XCTAssertNil(BuyerMessage.priceEnquiryURL(email: "not-an-email", artistName: "Sofia", artwork: art))
+    }
+
+    func testAmountParsing() {
+        XCTAssertEqual(BuyerMessage.amount(from: "$1,200"), 1200)
+        XCTAssertEqual(BuyerMessage.amount(from: " 950.5 "), 950.5)
+        XCTAssertNil(BuyerMessage.amount(from: "0"))
+        XCTAssertNil(BuyerMessage.amount(from: "abc"))
+    }
+}

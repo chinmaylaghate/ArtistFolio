@@ -20,6 +20,7 @@ struct ArtworkEditorView: View {
     @State private var unit = "cm"
     @State private var year = String(Calendar.current.component(.year, from: Date()))
     @State private var price = ""
+    @State private var priceOnRequest = false
     @State private var tags = ""
     @State private var isProcessing = false
     @State private var isSaving = false
@@ -44,7 +45,7 @@ struct ArtworkEditorView: View {
     private var validationMessage: String? {
         if existing == nil && processed.isEmpty { return "Add at least one photo." }
         if title.trimmed.isEmpty { return "Add a title." }
-        if parsedPrice == nil { return "Enter a price above zero." }
+        if !priceOnRequest && parsedPrice == nil { return "Enter a price above zero, or turn on Price on request." }
         if parsedWidth == nil || parsedHeight == nil { return "Enter width and height." }
         if parsedYear == nil { return "Enter a valid year." }
         return nil
@@ -80,13 +81,22 @@ struct ArtworkEditorView: View {
                     .pickerStyle(.segmented)
                 }
 
-                Section("Listing") {
-                    numberField("Price (USD)", placeholder: "1200", text: $price, keyboard: .decimalPad)
+                Section {
+                    Toggle("Price on request", isOn: $priceOnRequest.animation())
+                    if !priceOnRequest {
+                        numberField("Price (USD)", placeholder: "1200", text: $price, keyboard: .decimalPad)
+                    }
                     numberField("Year", placeholder: "2026", text: $year, keyboard: .numberPad)
                     if existing != nil {
                         Picker("Status", selection: $status) {
                             ForEach(ArtworkStatus.allCases) { Text($0.label).tag($0) }
                         }
+                    }
+                } header: {
+                    Text("Listing")
+                } footer: {
+                    if priceOnRequest {
+                        Text("Buyers see \u{201C}Price on request\u{201D} and can ask you for it.")
                     }
                 }
 
@@ -215,7 +225,8 @@ struct ArtworkEditorView: View {
         height = String(existing.dimensions.height)
         unit = existing.dimensions.unit
         year = String(existing.year)
-        price = String(existing.price)
+        priceOnRequest = existing.priceOnRequest
+        price = existing.priceOnRequest ? "" : String(existing.price)
         tags = existing.tags.joined(separator: ", ")
     }
 
@@ -238,7 +249,8 @@ struct ArtworkEditorView: View {
     }
 
     private func save() async {
-        guard let parsedPrice, let parsedWidth, let parsedHeight, let parsedYear else { return }
+        guard let parsedWidth, let parsedHeight, let parsedYear,
+              priceOnRequest || parsedPrice != nil else { return }
         isSaving = true
         errorMessage = nil
         defer { isSaving = false }
@@ -249,7 +261,7 @@ struct ArtworkEditorView: View {
             artistName: existing?.artistName ?? "",
             title: title.trimmed,
             details: details.trimmed,
-            price: parsedPrice,
+            price: priceOnRequest ? 0 : (parsedPrice ?? 0),
             status: status,
             medium: medium,
             style: style,
@@ -257,7 +269,8 @@ struct ArtworkEditorView: View {
             year: parsedYear,
             tags: parsedTags,
             thumbnailURL: existing?.thumbnailURL,
-            createdAt: existing?.createdAt ?? Date()
+            createdAt: existing?.createdAt ?? Date(),
+            priceOnRequest: priceOnRequest
         )
         do {
             let saved = try await appState.backend.saveArtwork(artwork, images: processed.isEmpty ? nil : processed)

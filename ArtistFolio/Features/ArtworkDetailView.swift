@@ -14,6 +14,9 @@ struct ArtworkDetailView: View {
     @State private var showShare = false
     @State private var viewerMode: ArtworkViewMode?
     @State private var isPastHero = false
+    @State private var showOffer = false
+    @State private var mailUnavailable = false
+    @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let sheetOverlap: CGFloat = 110
@@ -84,6 +87,16 @@ struct ArtworkDetailView: View {
         }
         .sheet(isPresented: $showShare) {
             SocialShareSheet(subject: .artwork(artwork, preferredImage: galleryURLs.indices.contains(selectedImage) ? galleryURLs[selectedImage] : nil))
+        }
+        .sheet(isPresented: $showOffer) {
+            if let email = artistEmail {
+                OfferSheet(artwork: artwork, artistName: artwork.artistName, email: email)
+            }
+        }
+        .alert("Couldn\u{2019}t open Mail", isPresented: $mailUnavailable) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Email \(artistEmail ?? "the artist") directly to ask about this piece.")
         }
         .sheet(isPresented: $showReport) {
             ReportSheet(target: .artwork, targetID: artwork.id, name: artwork.title)
@@ -307,15 +320,57 @@ struct ArtworkDetailView: View {
                     Text("Price")
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(Color.afTextSecondary)
-                    Text(artwork.priceText).font(.title2.weight(.semibold))
+                    if artwork.priceOnRequest {
+                        Text("On request").font(.headline)
+                    } else {
+                        Text(artwork.priceText).font(.title2.weight(.semibold))
+                    }
                 }
                 Spacer(minLength: 0)
+                if canMessageArtist {
+                    buyerAction
+                }
             }
         }
         .padding(.horizontal, AFSpacing.md)
         .padding(.vertical, 14)
         .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: AFRadius.md, style: .continuous))
         .accessibilityElement(children: .contain)
+    }
+
+    /// The artist's email when it is valid; offers and price questions go by email.
+    private var artistEmail: String? {
+        guard let email = artist?.contactEmail, ContactLinks.mailURL(email) != nil else { return nil }
+        return email
+    }
+
+    private var canMessageArtist: Bool {
+        !isOwner && artwork.status == .available && artistEmail != nil
+    }
+
+    @ViewBuilder
+    private var buyerAction: some View {
+        if artwork.priceOnRequest {
+            Button {
+                guard let email = artistEmail,
+                      let url = BuyerMessage.priceEnquiryURL(email: email, artistName: artwork.artistName, artwork: artwork) else { return }
+                openURL(url) { accepted in if !accepted { mailUnavailable = true } }
+            } label: {
+                Text("Ask for Price")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, AFSpacing.xs)
+            }
+            .afGlassProminentButton()
+            .tint(Color.afPrimary)
+        } else {
+            Button { showOffer = true } label: {
+                Text("Make an Offer")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, AFSpacing.xs)
+            }
+            .afGlassButton()
+            .tint(Color.afPrimary)
+        }
     }
 
     private var followButton: some View {
@@ -605,5 +660,80 @@ struct ReportSheet: View {
                 }
             }
         }
+    }
+}
+
+private struct OfferSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    let artwork: Artwork
+    let artistName: String
+    let email: String
+    @State private var amount = ""
+    @State private var note = ""
+    @State private var mailUnavailable = false
+    @FocusState private var amountFocused: Bool
+
+    private var firstName: String {
+        artistName.split(separator: " ").first.map(String.init) ?? artistName
+    }
+
+    private var offerURL: URL? {
+        guard let value = BuyerMessage.amount(from: amount) else { return nil }
+        return BuyerMessage.offerURL(email: email, artistName: artistName, artwork: artwork, amount: value, note: note)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Amount", text: $amount, prompt: Text("1200"))
+                        .keyboardType(.decimalPad)
+                        .focused($amountFocused)
+                } header: {
+                    Text("Your offer (USD)")
+                } footer: {
+                    if !artwork.priceOnRequest {
+                        Text("Listed at \(artwork.priceText).")
+                    }
+                }
+
+                Section {
+                    TextField("Add a message for \(firstName)", text: $note, axis: .vertical)
+                        .lineLimit(3...6)
+                        .onChange(of: note) { _, value in
+                            if value.count > BuyerMessage.maxNoteLength { note = String(value.prefix(BuyerMessage.maxNoteLength)) }
+                        }
+                } header: {
+                    Text("Note (optional)")
+                } footer: {
+                    Text("Opens Mail with your offer to \(firstName). Artist Folio doesn\u{2019}t handle payment or delivery.")
+                }
+            }
+            .navigationTitle("Make an Offer")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Open Mail") {
+                        guard let offerURL else { return }
+                        openURL(offerURL) { accepted in
+                            if accepted { dismiss() } else { mailUnavailable = true }
+                        }
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(offerURL == nil)
+                }
+            }
+            .alert("Couldn\u{2019}t open Mail", isPresented: $mailUnavailable) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Email \(email) directly with your offer.")
+            }
+            .onAppear { amountFocused = true }
+        }
+        .presentationDetents([.medium, .large])
     }
 }

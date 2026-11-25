@@ -111,9 +111,12 @@ struct Artwork: Identifiable, Hashable {
     var tags: [String] = []
     var thumbnailURL: URL?
     var createdAt: Date = Date()
+    /// The artist hides the price; buyers ask for it. `price` is stored as 0.
+    var priceOnRequest: Bool = false
 
     var priceText: String {
-        price.formatted(.currency(code: "USD").precision(.fractionLength(price.rounded() == price ? 0 : 2)))
+        if priceOnRequest { return "Price on request" }
+        return price.formatted(.currency(code: "USD").precision(.fractionLength(price.rounded() == price ? 0 : 2)))
     }
 }
 
@@ -128,7 +131,21 @@ struct ArtworkFilters: Hashable {
     static let priceCeiling: Double = 50000
 
     var hasRefinements: Bool {
-        !styles.isEmpty || !mediums.isEmpty || minPrice > 0 || maxPrice < Self.priceCeiling
+        !styles.isEmpty || !mediums.isEmpty || hasPriceLimit
+    }
+
+    var hasPriceLimit: Bool { minPrice > 0 || maxPrice < Self.priceCeiling }
+
+    /// Price-on-request pieces match only when no price limit is set.
+    func matchesPrice(_ artwork: Artwork) -> Bool {
+        if artwork.priceOnRequest { return !hasPriceLimit }
+        return artwork.price >= minPrice && artwork.price <= maxPrice
+    }
+
+    /// For price sorts, moves price-on-request pieces after priced ones, keeping order otherwise.
+    func ordered(_ items: [Artwork]) -> [Artwork] {
+        guard sortBy != .newest else { return items }
+        return items.filter { !$0.priceOnRequest } + items.filter(\.priceOnRequest)
     }
 
     enum SortOption: String, CaseIterable, Identifiable {
@@ -159,8 +176,7 @@ struct ArtCollection: Identifiable, Hashable {
     func matches(_ artwork: Artwork) -> Bool {
         (filters.styles.isEmpty || filters.styles.contains(artwork.style))
             && (filters.mediums.isEmpty || filters.mediums.contains(artwork.medium))
-            && artwork.price >= filters.minPrice
-            && artwork.price <= filters.maxPrice
+            && filters.matchesPrice(artwork)
     }
 
     static let featured = ArtCollection("abstract", "Abstract Masters", "Bold forms & pure emotion", styles: [.abstract])

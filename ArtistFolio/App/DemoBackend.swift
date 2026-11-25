@@ -30,7 +30,7 @@ final class DemoBackend: ArtBackend {
             Self.art("art-9", elena, "Summer Garden", 1250, .oilOnCanvas, .impressionism, cm(72, 60)),
             Self.art("art-3", james, "The Village Lane", 2200, .watercolor, .landscape, cm(62, 50)),
             Self.art("art-17", sofia, "Dusk Layers", 2400, .mixedMedia, .abstract, cm(60, 80)),
-            Self.art("art-1", elena, "Heavenly Assembly", 4800, .oilOnCanvas, .realism, cm(80, 100)),
+            Self.art("art-1", elena, "Heavenly Assembly", 0, .oilOnCanvas, .realism, cm(80, 100), priceOnRequest: true),
             Self.art("art-4", james, "Lakeside Morning", 1800, .watercolor, .landscape, cm(92, 70)),
             Self.art("art-13", sofia, "White Gesture", 450, .acrylic, .minimalism, cm(40, 60)),
             Self.art("art-5", elena, "Cathedral Light", 3200, .oilOnCanvas, .realism, cm(90, 70)),
@@ -53,8 +53,11 @@ final class DemoBackend: ArtBackend {
         }
     }
 
-    private static func art(_ id: String, _ artist: UserProfile, _ title: String, _ price: Double, _ medium: ArtworkMedium, _ style: ArtworkStyle, _ size: ArtworkDimensions, status: ArtworkStatus = .available) -> Artwork {
-        Artwork(id: id, artistId: artist.id, artistName: artist.displayName, title: title, details: "An original work exploring color, light, and texture.", price: price, status: status, medium: medium, style: style, dimensions: size, year: 2026, tags: [style.rawValue.lowercased()], thumbnailURL: image(key: id, aspect: size.aspectRatio))
+    private static func art(_ id: String, _ artist: UserProfile, _ title: String, _ price: Double, _ medium: ArtworkMedium, _ style: ArtworkStyle, _ size: ArtworkDimensions, status: ArtworkStatus = .available, priceOnRequest: Bool = false) -> Artwork {
+        var artwork = Artwork(id: id, artistId: artist.id, artistName: artist.displayName, title: title, details: "An original work exploring color, light, and texture.", price: price, status: status, medium: medium, style: style, dimensions: size, year: 2026, tags: [style.rawValue.lowercased()], thumbnailURL: image(key: id, aspect: size.aspectRatio))
+        artwork.priceOnRequest = priceOnRequest
+        if priceOnRequest { artwork.price = 0 }
+        return artwork
     }
 
     /// Renders the bundled painting `demo_art_N` for `art-N`, aspect-filled to the artwork's dimensions.
@@ -136,14 +139,14 @@ final class DemoBackend: ArtBackend {
             return words.allSatisfy(tokens.contains)
                 && (filters.styles.isEmpty || filters.styles.contains(art.style))
                 && (filters.mediums.isEmpty || filters.mediums.contains(art.medium))
-                && art.price >= filters.minPrice && art.price <= filters.maxPrice
+                && filters.matchesPrice(art)
         }
         switch filters.sortBy {
         case .newest: break
         case .priceAsc: output.sort { $0.price < $1.price }
         case .priceDesc: output.sort { $0.price > $1.price }
         }
-        return ArtworkPage(items: output, cursor: nil)
+        return ArtworkPage(items: filters.ordered(output), cursor: nil)
     }
 
     func artworks(ownerID: String) async throws -> [Artwork] { items.filter { $0.artistId == ownerID } }
